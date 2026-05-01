@@ -7,6 +7,7 @@ declare module "next-auth" {
       email?: string | null;
     };
   }
+  
 }
 
 declare module "next-auth/jwt" {
