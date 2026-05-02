@@ -1,30 +1,32 @@
 import { prisma } from "@/server/lib/prisma";
 import bcrypt from "bcrypt";
-import { NextResponse } from "next/server";
+import { signupSchema } from "@/server/validators/auth.validator";
+import { successResponse, errorResponse } from "@/server/lib/api-response";
+import { withErrorHandling } from "@/server/lib/with-errors";
 
-export async function POST(req: Request) {
-
-    console.log("DB URL:", process.env.DATABASE_URL);
-  const body = await req.json();
-  const { name, email, password } = body;
+export const POST = withErrorHandling(async (req: Request) => {
+  const body = signupSchema.parse(await req.json());
 
   const existingUser = await prisma.user.findUnique({
-    where: { email },
+    where: { email: body.email },
   });
 
   if (existingUser) {
-    return NextResponse.json({ error: "User already exists" }, { status: 400 });
+    return errorResponse("User already exists");
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
+  const hashedPassword = await bcrypt.hash(body.password, 10);
 
   const user = await prisma.user.create({
     data: {
-      name,
-      email,
+      name: body.name,
+      email: body.email,
       passwordHash: hashedPassword,
     },
   });
 
-  return NextResponse.json(user);
-}
+  return successResponse({
+    id: user.id,
+    email: user.email,
+  });
+});

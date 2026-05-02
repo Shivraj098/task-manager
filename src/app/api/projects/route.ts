@@ -1,18 +1,14 @@
-import { NextResponse } from "next/server";
 import { getAuthSession } from "@/server/lib/auth";
-import { handleCreateProject, handleGetProjects } from "@/server/controllers/project.controller";
+import { createProjectSchema } from "@/server/validators/project.validator";
+import { successResponse } from "@/server/lib/api-response";
+import { withErrorHandling } from "@/server/lib/with-errors";
+import { createProject } from "@/server/services/project.service";
 
-export async function POST(req: Request) {
+export const POST = withErrorHandling(async (req: Request) => {
   const session = await getAuthSession();
-  const body = await req.json();
+  const body = createProjectSchema.parse(await req.json());
 
-  const project = await handleCreateProject(session.user.id, body);
-  return NextResponse.json(project);
-}
+  const project = await createProject(session.user.id, body.name);
 
-export async function GET() {
-  const session = await getAuthSession();
-
-  const projects = await handleGetProjects(session.user.id);
-  return NextResponse.json(projects);
-}
+  return successResponse(project);
+});

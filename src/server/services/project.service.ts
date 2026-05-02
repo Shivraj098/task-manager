@@ -32,10 +32,7 @@ export async function getUserProjects(userId: string) {
   });
 }
 
-export async function addMember(
-  projectId: string,
-  email: string
-) {
+export async function addMember(projectId: string, email: string) {
   const user = await prisma.user.findUnique({
     where: { email },
   });
@@ -61,4 +58,31 @@ export async function isProjectAdmin(userId: string, projectId: string) {
   });
 
   return member?.role === "ADMIN";
+}
+
+export async function requireProjectMember(userId: string, projectId: string) {
+  const member = await prisma.projectMember.findUnique({
+    where: {
+      userId_projectId: {
+        userId,
+        projectId,
+      },
+    },
+  });
+
+  if (!member) {
+    throw new Error("Not a project member");
+  }
+
+  return member;
+}
+
+export async function requireProjectAdmin(userId: string, projectId: string) {
+  const member = await requireProjectMember(userId, projectId);
+
+  if (member.role !== "ADMIN") {
+    throw new Error("Admin access required");
+  }
+
+  return member;
 }

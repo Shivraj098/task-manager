@@ -1,38 +1,34 @@
 // src/app/api/projects/[projectId]/tasks/route.ts
 
-import { NextResponse } from "next/server";
 import { getAuthSession } from "@/server/lib/auth";
-import {
-  handleCreateTask,
-  handleGetTasks,
-} from "@/server/controllers/task.controller";
+import { createTaskSchema } from "@/server/validators/task.validator";
+import { successResponse } from "@/server/lib/api-response";
+import { withErrorHandling } from "@/server/lib/with-errors";
+import { createTask } from "@/server/services/task.service";
 
-export async function POST(
-  req: Request,
-  { params }: { params: { projectId: string } }
-) {
-  const session = await getAuthSession();
-  const body = await req.json();
+type ParamsContext = {
+  params: {
+    projectId: string;
+  };
+};
 
-  const task = await handleCreateTask(
-    session.user.id,
-    params.projectId,
-    body
-  );
+export const POST = withErrorHandling<ParamsContext>(
+  async (req, { params }) => {
+    const session = await getAuthSession();
 
-  return NextResponse.json(task);
-}
+    const parsed = createTaskSchema.parse(await req.json());
 
-export async function GET(
-  req: Request,
-  { params }: { params: { projectId: string } }
-) {
-  const session = await getAuthSession();
+    const normalizedBody = {
+      ...parsed,
+      assignedToId: parsed.assignedToId ?? undefined,
+    };
 
-  const tasks = await handleGetTasks(
-    session.user.id,
-    params.projectId
-  );
+    const task = await createTask(
+      session.user.id,
+      params.projectId,
+      normalizedBody
+    );
 
-  return NextResponse.json(tasks);
-}
+    return successResponse(task);
+  }
+);
