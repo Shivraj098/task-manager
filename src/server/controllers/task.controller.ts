@@ -31,5 +31,5 @@ export async function handleUpdateTaskStatus(
   taskId: string,
   body: UpdateTaskStatusInput
 ) {
-  return updateTaskStatus(userId, taskId, body);
+  return updateTaskStatus(userId, taskId, body.status);
 }

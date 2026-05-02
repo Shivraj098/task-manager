@@ -16,19 +16,37 @@ export const GET = withErrorHandling<ParamsContext>(
 
     await requireProjectMember(session.user.id, params.projectId);
 
-    const members = await prisma.projectMember.findMany({
-      where: { projectId: params.projectId },
+    const project = await prisma.project.findUnique({
+      where: { id: params.projectId },
       include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+        tasks: {
+          include: {
+            assignedTo: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
       },
     });
 
-    return successResponse(members);
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    return successResponse(project);
   }
 );

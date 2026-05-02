@@ -1,30 +1,25 @@
 import { prisma } from "@/server/lib/prisma";
-import { CreateTaskInput, UpdateTaskStatusInput } from "../../types/task.types";
+import { requireProjectMember } from "./project.service";
 
-export async function isProjectMember(userId: string, projectId: string) {
-  const member = await prisma.projectMember.findUnique({
-    where: {
-      userId_projectId: {
-        userId,
-        projectId,
-      },
-    },
-  });
+type CreateTaskInput = {
+  title: string;
+  description?: string;
+  priority: "LOW" | "MEDIUM" | "HIGH";
+  assignedToId?: string;
+};
 
-  return !!member;
-}
+type TaskStatus = "TODO" | "IN_PROGRESS" | "DONE";
 
+// ✅ CREATE TASK
 export async function createTask(
   userId: string,
   projectId: string,
   data: CreateTaskInput
 ) {
-  const isMember = await isProjectMember(userId, projectId);
-  if (!isMember) throw new Error("Unauthorized");
+  await requireProjectMember(userId, projectId);
 
-  // validate assigned user is in same project
   if (data.assignedToId) {
-    const assignedMember = await prisma.projectMember.findUnique({
+    const member = await prisma.projectMember.findUnique({
       where: {
         userId_projectId: {
           userId: data.assignedToId,
@@ -33,8 +28,8 @@ export async function createTask(
       },
     });
 
-    if (!assignedMember) {
-      throw new Error("Assigned user not part of project");
+    if (!member) {
+      throw new Error("Assigned user is not part of this project");
     }
   }
 
@@ -42,7 +37,6 @@ export async function createTask(
     data: {
       title: data.title,
       description: data.description,
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
       priority: data.priority,
       status: "TODO",
       projectId,
@@ -51,36 +45,47 @@ export async function createTask(
   });
 }
 
-export async function getProjectTasks(userId: string, projectId: string) {
-  const isMember = await isProjectMember(userId, projectId);
-  if (!isMember) throw new Error("Unauthorized");
+// ✅ GET PROJECT TASKS
+export async function getProjectTasks(
+  userId: string,
+  projectId: string
+) {
+  await requireProjectMember(userId, projectId);
 
   return prisma.task.findMany({
     where: { projectId },
     include: {
-      assignedTo: true,
+      assignedTo: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
     },
   });
 }
 
+// ✅ UPDATE TASK STATUS
 export async function updateTaskStatus(
   userId: string,
   taskId: string,
-  data: UpdateTaskStatusInput
+  status: TaskStatus
 ) {
   const task = await prisma.task.findUnique({
     where: { id: taskId },
   });
 
-  if (!task) throw new Error("Task not found");
+  if (!task) {
+    throw new Error("Task not found");
+  }
 
-  const isMember = await isProjectMember(userId, task.projectId);
-  if (!isMember) throw new Error("Unauthorized");
+  await requireProjectMember(userId, task.projectId);
 
   return prisma.task.update({
     where: { id: taskId },
-    data: {
-      status: data.status,
-    },
+    data: { status },
   });
 }
