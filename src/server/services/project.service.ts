@@ -1,6 +1,6 @@
 import { prisma } from "@/server/lib/prisma";
 import { ValidationError } from "../lib/errors";
-
+import { AppError } from "@/server/lib/app-errors";
 /**
  * Create a new project and assign creator as ADMIN
  */
@@ -8,7 +8,10 @@ export async function createProject(userId: string, name: string) {
   const trimmedName = name.trim();
 
   if (!trimmedName) {
-    throw new ValidationError("Project name required");
+    throw new AppError(
+  "Project name required",
+  400,
+);
   }
 
   return prisma.$transaction(async (tx) => {
@@ -93,7 +96,10 @@ export async function addMember(
     });
 
     if (!user) {
-      throw new Error("User not found");
+      throw new AppError(
+  "User not found",
+  404,
+);
     }
 
     const existing = await tx.projectMember.findUnique({
@@ -106,7 +112,10 @@ export async function addMember(
     });
 
     if (existing) {
-      throw new Error("User already a member");
+      throw new AppError(
+  "User already a member",
+  409,
+);
     }
 
     return tx.projectMember.create({
@@ -155,7 +164,10 @@ export async function requireProjectMember(userId: string, projectId: string) {
   });
 
   if (!member) {
-    throw new Error("Not a project member");
+    throw new AppError(
+  "Not a project member",
+  403,
+);
   }
 
   return member;
@@ -171,11 +183,17 @@ export async function requireProjectAdmin(userId: string, projectId: string) {
   });
 
   if (!project) {
-    throw new Error("Project not found");
+    throw new AppError(
+  "Not a project member",
+  403,
+);
   }
 
   if (project.createdById !== userId) {
-    throw new Error("Admin access required");
+    throw new AppError(
+  "Admin access required",
+  403,
+);
   }
 
   return true;

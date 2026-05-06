@@ -1,52 +1,37 @@
-type ErrorResponse = {
-  success: false;
-  error: {
-    message: string;
-    code: string;
-    statusCode: number;
-    issues?: unknown;
-  };
-};
-
-type SuccessResponse<T> = {
-  success: true;
-  data: T;
-};
-
-export function successResponse<T>(data: T) {
-  const body: SuccessResponse<T> = {
-    success: true,
-    data,
-  };
-
-  return new Response(JSON.stringify(body), {
-    status: 200,
-    headers: {
-      "Content-Type": "application/json",
+export function successResponse<T>(
+  data: T,
+  status = 200,
+) {
+  return new Response(
+    JSON.stringify({
+      success: true,
+      data,
+    }),
+    {
+      status,
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
     },
-  });
+  );
 }
 
 export function errorResponse(
   message: string,
-  statusCode = 400,
-  code = "BAD_REQUEST",
-  issues?: unknown
+  status = 400,
 ) {
-  const body: ErrorResponse = {
-    success: false,
-    error: {
-      message,
-      code,
-      statusCode,
-      issues,
+  return new Response(
+    JSON.stringify({
+      success: false,
+      error: message,
+    }),
+    {
+      status,
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
     },
-  };
-
-  return new Response(JSON.stringify(body), {
-    status: statusCode,
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
+  );
 }

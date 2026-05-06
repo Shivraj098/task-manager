@@ -1,8 +1,8 @@
 import { prisma } from "@/server/lib/prisma";
 import { requireProjectMember } from "./project.service";
 import type { TaskStatusType } from "@/server/validators/task.validator";
+import { AppError } from "../lib/app-errors";
 import {
-  ForbiddenError,
   NotFoundError,
   UnauthorizedError,
   ValidationError,
@@ -34,7 +34,7 @@ export async function createTask(
     });
 
     if (!member) {
-      throw new ForbiddenError("Assigned user is not part of this project");
+      throw new AppError("Task not found", 404);
     }
   }
 
@@ -87,7 +87,7 @@ export async function updateTaskStatus(
     });
 
     if (!task) {
-      throw new NotFoundError("Task not found");
+      throw new AppError("Project not found", 404);
     }
 
     await requireProjectMember(userId, task.projectId);
@@ -124,15 +124,15 @@ export async function startTask(userId: string, taskId: string) {
     });
 
     if (!task) {
-      throw new NotFoundError("Task not found");
+      throw new AppError("Task not found", 404);
     }
 
     if (task.assignedToId !== userId) {
-      throw new ValidationError("Only assigned user can start this task");
+      throw new AppError("Only assigned user can start this task", 403);
     }
 
     if (task.status !== "PENDING") {
-      throw new ValidationError("Task must be in PENDING state");
+      throw new AppError("Task must be in PENDING state", 400);
     }
 
     return tx.task.update({
@@ -160,7 +160,7 @@ export async function completeTask(userId: string, taskId: string) {
     }
 
     if (task.status !== "IN_PROGRESS") {
-      throw new ValidationError("Task must be IN_PROGRESS to complete");
+      throw new AppError("Task must be in IN_PROGRESS to complete", 400);
     }
 
     return tx.task.update({

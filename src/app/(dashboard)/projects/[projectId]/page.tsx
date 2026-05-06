@@ -4,6 +4,9 @@ import { useEffect, useState, useCallback, use } from "react";
 import { useToast, ToastContainer } from "@/components/ui/toast";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { pusherClient } from "@/server/lib/pusher-client";
+import FormInput from "@/components/shared/forms/FormInput";
+import FormTextarea from "@/components/shared/forms/FormTextArea";
+import FormSection from "@/components/shared/forms/FormSection";
 type Member = {
   user: {
     id: string;
@@ -49,9 +52,17 @@ export default function ProjectPage({
   const { toasts, showToast } = useToast();
   const [taskTitle, setTaskTitle] = useState("");
   const [selectedUser, setSelectedUser] = useState("");
+  const [memberEmail, setMemberEmail] = useState("");
 
   const [allUsers, setAllUsers] = useState<Member["user"][]>([]);
   const [selectedMemberToAdd, setSelectedMemberToAdd] = useState("");
+
+  const [taskDescription, setTaskDescription] = useState("");
+  const [taskPriority, setTaskPriority] = useState<"LOW" | "MEDIUM" | "HIGH">(
+    "MEDIUM",
+  );
+
+  const [assignedToId, setAssignedToId] = useState("");
 
   // ✅ Safe fetch wrapper
   const safeFetch = useCallback(
@@ -88,17 +99,17 @@ export default function ProjectPage({
   }, [projectId, safeFetch]);
 
   useEffect(() => {
-  const channel = pusherClient.subscribe(`project-${projectId}`);
+    const channel = pusherClient.subscribe(`project-${projectId}`);
 
-  channel.bind("project-updated", async () => {
-    await fetchProject();
-  });
+    channel.bind("project-updated", async () => {
+      await fetchProject();
+    });
 
-  return () => {
-    channel.unbind_all();
-    pusherClient.unsubscribe(`project-${projectId}`);
-  };
-}, [projectId, fetchProject]);
+    return () => {
+      channel.unbind_all();
+      pusherClient.unsubscribe(`project-${projectId}`);
+    };
+  }, [projectId, fetchProject]);
 
   const fetchUsers = useCallback(async () => {
     const data = await safeFetch(() =>
@@ -128,40 +139,41 @@ export default function ProjectPage({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: taskTitle.trim(),
-          priority: "MEDIUM",
-          assignedToId: selectedUser || undefined,
+          description: taskDescription.trim(),
+          priority: taskPriority,
+          assignedToId: assignedToId || undefined,
         }),
       }),
     );
 
     setTaskTitle("");
-    setSelectedUser("");
+    setTaskDescription("");
+    setTaskPriority("MEDIUM");
+    setAssignedToId("");
     await fetchProject();
 
     setActionLoading(false);
   };
 
   const handleAddMember = async () => {
-    if (!selectedMemberToAdd) return;
-
-    const user = allUsers.find((u) => u.id === selectedMemberToAdd);
-    if (!user) return;
+    if (!memberEmail.trim()) return;
 
     setActionLoading(true);
 
-    if (user) {
-      showToast("Member added", "success");
-    }
     await safeFetch(() =>
       fetch(`/api/projects/${projectId}/members`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: user.email }),
+        body: JSON.stringify({
+          email: memberEmail.trim(),
+        }),
       }),
     );
 
-    setSelectedMemberToAdd("");
+    showToast("Member added", "success");
+
+    setMemberEmail("");
     await fetchProject();
 
     setActionLoading(false);
@@ -211,7 +223,6 @@ export default function ProjectPage({
         showToast("Project deleted", "success");
         window.location.href = "/dashboard";
       }
-
     } catch {
       showToast("Something went wrong", "error");
     } finally {
@@ -257,7 +268,9 @@ export default function ProjectPage({
         "
       >
         <div className="flex justify-between items-start">
-          <h3 className={`font-medium ${isCompleted ? "line-through text-gray-400" : ""}`}>
+          <h3
+            className={`font-medium ${isCompleted ? "line-through text-gray-400" : ""}`}
+          >
             {task.title}
           </h3>
 
@@ -303,34 +316,45 @@ export default function ProjectPage({
       {/* MEMBERS SECTION */}
       <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-6">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Team Members</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">
+            Team Members
+          </h2>
           <p className="mt-1 text-sm text-gray-500">
             Manage collaboration and workspace access.
           </p>
         </div>
 
-        <div className="flex gap-3">
-          <select
-            value={selectedMemberToAdd}
-            onChange={(e) => setSelectedMemberToAdd(e.target.value)}
-            className="h-11 flex-1 rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm transition focus:border-black focus:bg-white"
-          >
-            <option value="">Select user to add</option>
-            {availableUsers.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name} • {u.email}
-              </option>
-            ))}
-          </select>
+        <FormSection
+          title="Invite Team Member"
+          description="Add collaborators to this project."
+        >
+          <FormInput
+            label="Member Email"
+            placeholder="john@example.com"
+            value={memberEmail}
+            onChange={(event) => setMemberEmail(event.target.value)}
+          />
 
           <button
-            disabled={actionLoading}
             onClick={handleAddMember}
-            className="h-11 px-6 rounded-2xl bg-black text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!memberEmail.trim()}
+            className="
+      h-12
+      rounded-2xl
+      bg-black
+      px-6
+      text-sm
+      font-semibold
+      text-white
+      transition-all
+      hover:opacity-90
+      disabled:cursor-not-allowed
+      disabled:opacity-50
+    "
           >
             Add Member
           </button>
-        </div>
+        </FormSection>
 
         <div className="flex flex-wrap gap-2">
           {data.members.map((m) => (
@@ -345,58 +369,126 @@ export default function ProjectPage({
       </div>
 
       {/* CREATE TASK SECTION */}
-      <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-6">
-        <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Create New Task</h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Assign work and track execution across your team.
-          </p>
-        </div>
-
-        <input
+      <FormSection
+        title="Create Task"
+        description="Assign actionable work to your team."
+      >
+        <FormInput
+          label="Task Title"
+          placeholder="Design landing page"
           value={taskTitle}
-          onChange={(e) => setTaskTitle(e.target.value)}
-          placeholder="Task title..."
-          className="h-11 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm transition focus:border-black focus:bg-white"
+          onChange={(event) => setTaskTitle(event.target.value)}
         />
 
-        <select
-          value={selectedUser}
-          onChange={(e) => setSelectedUser(e.target.value)}
-          className="h-11 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-sm transition focus:border-black focus:bg-white"
-        >
-          <option value="">Assign to (optional)</option>
-          {data.members.map((m) => (
-            <option key={m.user.id} value={m.user.id}>
-              {m.user.name}
-            </option>
-          ))}
-        </select>
+        <FormTextarea
+          label="Task Description"
+          placeholder="Add detailed task instructions..."
+          value={taskDescription}
+          onChange={(event) => setTaskDescription(event.target.value)}
+        />
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Priority</label>
+
+          <select
+            value={taskPriority}
+            onChange={(event) =>
+              setTaskPriority(event.target.value as "LOW" | "MEDIUM" | "HIGH")
+            }
+            className="
+        h-12
+        w-full
+        rounded-2xl
+        border
+        border-gray-200
+        bg-white
+        px-4
+        text-sm
+        shadow-sm
+      "
+          >
+            <option value="LOW">Low</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="HIGH">High</option>
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Assign To</label>
+
+          <select
+            value={assignedToId}
+            onChange={(event) => setAssignedToId(event.target.value)}
+            className="
+        h-12
+        w-full
+        rounded-2xl
+        border
+        border-gray-200
+        bg-white
+        px-4
+        text-sm
+        shadow-sm
+      "
+          >
+            <option value="">Select member</option>
+
+            {data.members.map((member) => (
+              <option key={member.user.id} value={member.user.id}>
+                {member.user.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
         <button
-          disabled={actionLoading}
           onClick={handleCreateTask}
-          className="h-11 w-full rounded-2xl bg-black px-5 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={!taskTitle.trim()}
+          className="
+      h-12
+      rounded-2xl
+      bg-black
+      px-6
+      text-sm
+      font-semibold
+      text-white
+      transition-all
+      hover:opacity-90
+      disabled:cursor-not-allowed
+      disabled:opacity-50
+    "
         >
           Create Task
         </button>
-      </div>
+      </FormSection>
 
       {/* ACTIVE TASKS */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight">Active Tasks</h2>
-            <p className="text-sm text-gray-500">Tasks currently being worked on.</p>
+            <h2 className="text-2xl font-semibold tracking-tight">
+              Active Tasks
+            </h2>
+            <p className="text-sm text-gray-500">
+              Tasks currently being worked on.
+            </p>
           </div>
         </div>
 
         {activeTasks.length === 0 ? (
-          <div className="text-gray-400 py-8 text-center border border-dashed border-gray-200 rounded-3xl">
-            No active tasks yet. Create one above.
+          <div className="rounded-3xl border border-dashed border-gray-200 py-12 text-center">
+            <h3 className="text-lg font-semibold text-gray-900">
+              No tasks yet
+            </h3>
+
+            <p className="mt-2 text-sm text-gray-500">
+              Create and assign tasks to start tracking team progress.
+            </p>
           </div>
         ) : (
-          <div className="grid gap-4">{activeTasks.map((t) => renderTask(t))}</div>
+          <div className="grid gap-4">
+            {activeTasks.map((t) => renderTask(t))}
+          </div>
         )}
       </div>
 
@@ -404,8 +496,12 @@ export default function ProjectPage({
       <div>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight">Completed Tasks</h2>
-            <p className="text-sm text-gray-500">Finished work delivered by team members.</p>
+            <h2 className="text-2xl font-semibold tracking-tight">
+              Completed Tasks
+            </h2>
+            <p className="text-sm text-gray-500">
+              Finished work delivered by team members.
+            </p>
           </div>
         </div>
 
@@ -425,7 +521,8 @@ export default function ProjectPage({
         <div className="rounded-3xl border border-red-100 bg-red-50 p-6">
           <h3 className="font-semibold text-red-700">Danger Zone</h3>
           <p className="text-sm text-red-600 mt-1">
-            This action cannot be undone. All tasks and data will be permanently deleted.
+            This action cannot be undone. All tasks and data will be permanently
+            deleted.
           </p>
           <button
             disabled={actionLoading}

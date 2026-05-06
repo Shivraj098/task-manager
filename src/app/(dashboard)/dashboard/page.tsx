@@ -5,6 +5,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { pusherClient } from "@/server/lib/pusher-client";
+import FormInput from "@/components/shared/forms/FormInput";
+import FormSection from "@/components/shared/forms/FormSection";
 type DashboardData = {
   totalTasks: number;
   tasksByStatus: {
@@ -248,54 +250,63 @@ export default function DashboardPage() {
           </div>
 
           {/* CREATE PROJECT */}
-          <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
-            <input
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              placeholder="Enter project name..."
-              className="
-              h-11
-              rounded-2xl
-              border
-              border-gray-200
-              bg-gray-50
-              px-4
-              text-sm
-              transition
-              focus:border-black
-              focus:bg-white
-            "
-            />
+          <FormSection
+            title="Create Project"
+            description="Start managing a new team workflow."
+          >
+            <div className="flex flex-col gap-4 md:flex-row">
+              <div className="flex-1">
+                <FormInput
+                  label="Project Name"
+                  placeholder="Enter project name"
+                  value={projectName}
+                  onChange={(event) => setProjectName(event.target.value)}
+                  disabled={creating}
+                />
+              </div>
 
-            <button
-              onClick={handleCreateProject}
-              disabled={!projectName.trim() || creating}
-              className="
-              h-11
-              rounded-2xl
-              bg-black
-              px-5
-              text-sm
-              font-medium
-              text-white
-              transition
-              hover:opacity-90
-              disabled:cursor-not-allowed
-              disabled:opacity-50
-            "
-            >
-              {creating ? "Creating..." : "Create Project"}
-            </button>
-          </div>
+              <button
+                onClick={handleCreateProject}
+                disabled={creating || !projectName.trim()}
+                className="
+        h-12
+        rounded-2xl
+        bg-black
+        px-6
+        text-sm
+        font-semibold
+        text-white
+        transition-all
+        hover:opacity-90
+        disabled:cursor-not-allowed
+        disabled:opacity-50
+      "
+              >
+                {creating ? "Creating..." : "Create Project"}
+              </button>
+            </div>
+          </FormSection>
         </div>
 
         {/* EMPTY STATE */}
         {projects.length === 0 ? (
-          <div className="mt-10 rounded-3xl border border-dashed border-gray-200 py-16 text-center">
-            <h3 className="text-lg font-medium">No projects yet</h3>
+          <div
+            className="
+    rounded-3xl
+    border
+    border-dashed
+    border-gray-300
+    bg-white/70
+    px-8
+    py-14
+    text-center
+  "
+          >
+            <h3 className="text-lg font-semibold">No projects yet</h3>
 
             <p className="mt-2 text-sm text-gray-500">
-              Create your first workspace to start collaborating.
+              Create your first project to start assigning tasks and managing
+              team workflows.
             </p>
           </div>
         ) : (
