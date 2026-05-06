@@ -1,25 +1,33 @@
+import { ZodError } from "zod";
 
-type RouteHandler<TContext extends Record<string, unknown>> = (
-  req: Request,
-  context: TContext
-) => Promise<Response>;
-
-export function withErrorHandling<TContext extends Record<string, unknown>>(
-  handler: RouteHandler<TContext>
+export function withErrorHandling<T>(
+  handler: (req: Request, context?: T) => Promise<Response>
 ) {
-  return async (req: Request, context: TContext): Promise<Response> => {
+  return async (req: Request, context?: T): Promise<Response> => {
     try {
       return await handler(req, context);
     } catch (err: unknown) {
-      console.error(err);
+      console.error("API Error:", err);
 
-      const message =
-        err instanceof Error ? err.message : "Internal Server Error";
+      // ✅ Handle Zod validation errors properly
+      if (err instanceof ZodError) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Validation error",
+            issues: err.issues,
+          }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
 
       return new Response(
         JSON.stringify({
           success: false,
-          error: message,
+          error: err instanceof Error ? err.message : "Server error",
         }),
         {
           status: 500,

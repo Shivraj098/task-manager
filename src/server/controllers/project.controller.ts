@@ -1,39 +1,51 @@
 import {
   createProject,
-  getUserProjects,
+  getAdminProjects,
   addMember,
+  
 } from "../services/project.service";
-import { CreateProjectInput, AddMemberInput } from "../../types/project.types";
-import { isProjectAdmin } from "../services/project.service";
+
+import {
+  CreateProjectInput,
+  AddMemberInput,
+} from "../../types/project.types";
+
+/**
+ * Create project
+ */
 export async function handleCreateProject(
   userId: string,
-  body: CreateProjectInput,
+  body: CreateProjectInput
 ) {
-  if (!body.name || body.name.trim().length === 0) {
+  const name = body.name?.trim();
+
+  if (!name) {
     throw new Error("Project name required");
   }
 
-  return createProject(userId, body.name);
+  return createProject(userId, name);
 }
 
+/**
+ * Get all user projects
+ */
 export async function handleGetProjects(userId: string) {
-  return getUserProjects(userId);
+  return getAdminProjects(userId);
 }
 
+/**
+ * Add member to project (ADMIN enforced in service)
+ */
 export async function handleAddMember(
   userId: string,
   projectId: string,
-  body: AddMemberInput,
+  body: AddMemberInput
 ) {
-  const isAdmin = await isProjectAdmin(userId, projectId);
+  const email = body.email?.trim().toLowerCase();
 
-  if (!isAdmin) {
-    throw new Error("Forbidden");
-  }
-
-  if (!body.email) {
+  if (!email) {
     throw new Error("Email is required");
   }
 
-  return addMember(projectId, body.email);
+  return addMember(userId, projectId, email);
 }

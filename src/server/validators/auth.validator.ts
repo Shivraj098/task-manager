@@ -6,7 +6,8 @@ export const signupSchema = z
       .string()
       .min(2, "Name must be at least 2 characters")
       .max(100, "Name must be less than 100 characters")
-      .regex(/^[a-zA-Z\s'-]+$/, "Name can only contain letters, spaces, apostrophes, and hyphens")
+
+      .regex(/^[a-zA-Z0-9\s'-]+$/, "Name can only contain letters, spaces,numbers, apostrophes, and hyphens")
       .transform((val) => val.trim()),
 
     email: z

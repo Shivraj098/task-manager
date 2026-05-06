@@ -1,8 +1,16 @@
-export function successResponse<T>(data: T) {
-  return Response.json({
-    success: true,
-    data,
-  });
+export function successResponse(data: unknown) {
+  return new Response(
+    JSON.stringify({
+      success: true,
+      data,
+    }),
+    {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  );
 }
 
 export function errorResponse(message: string, status = 400) {

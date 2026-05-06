@@ -1,24 +1,36 @@
-// src/server/controllers/task.controller.ts
-
 import {
   createTask,
   getProjectTasks,
   updateTaskStatus,
 } from "../services/task.service";
-import {
+
+import type {
   CreateTaskInput,
   UpdateTaskStatusInput,
-} from "../../types/task.types";
+} from "@/server/validators/task.validator";
 
+/**
+ * Create Task
+ */
 export async function handleCreateTask(
   userId: string,
   projectId: string,
   body: CreateTaskInput
 ) {
-  if (!body.title) throw new Error("Title required");
-  return createTask(userId, projectId, body);
+  if (!body.title) {
+    throw new Error("Title required");
+  }
+  const normalizedBody = {
+    ...body,
+    assignedToId: body.assignedToId ?? undefined,
+  };
+
+  return createTask(userId, projectId, normalizedBody);
 }
 
+/**
+ * Get Project Tasks
+ */
 export async function handleGetTasks(
   userId: string,
   projectId: string
@@ -26,6 +38,9 @@ export async function handleGetTasks(
   return getProjectTasks(userId, projectId);
 }
 
+/**
+ * Update Task Status
+ */
 export async function handleUpdateTaskStatus(
   userId: string,
   taskId: string,

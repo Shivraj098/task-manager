@@ -1,7 +1,10 @@
 import { getAuthSession } from "@/server/lib/auth";
 import { withErrorHandling } from "@/server/lib/with-errors";
-import { successResponse } from "@/server/lib/api-response";
-import { requireProjectMember } from "@/server/services/project.service";
+import { errorResponse, successResponse } from "@/server/lib/api-response";
+import {
+  requireProjectAdmin,
+  requireProjectMember,
+} from "@/server/services/project.service";
 import { prisma } from "@/server/lib/prisma";
 
 type ParamsContext = {
@@ -11,13 +14,30 @@ type ParamsContext = {
 };
 
 export const GET = withErrorHandling<ParamsContext>(
-  async (_req, { params }) => {
+  async (_req: Request, context) => {
     const session = await getAuthSession();
 
-    await requireProjectMember(session.user.id, params.projectId);
+    // ✅ AUTH CHECK
+    if (!session) {
+      return errorResponse("Unauthorized", 401);
+    }
+
+    // ✅ PARAM VALIDATION
+    if (!context?.params) throw new Error("Missing params");
+
+    const { projectId } = await context.params;
+
+    if (!projectId) throw new Error("Invalid projectId");
+
+    if (!projectId || typeof projectId !== "string") {
+      throw new Error("Invalid projectId");
+    }
+
+    // ✅ RBAC CHECK
+    await requireProjectMember(session.user.id, projectId);
 
     const project = await prisma.project.findUnique({
-      where: { id: params.projectId },
+      where: { id: projectId },
       include: {
         members: {
           include: {
@@ -48,5 +68,37 @@ export const GET = withErrorHandling<ParamsContext>(
     }
 
     return successResponse(project);
-  }
+  },
+);
+
+export const DELETE = withErrorHandling<ParamsContext>(
+  async (_req: Request, context) => {
+    const session = await getAuthSession();
+    if (!session) return errorResponse("Unauthorized", 401);
+
+    if (!context?.params) throw new Error("Missing params");
+
+    const { projectId } = await context.params;
+
+    if (!projectId) throw new Error("Invalid projectId");
+    if (!projectId) throw new Error("Invalid projectId");
+
+    // 🔐 ADMIN CHECK
+    await requireProjectAdmin(session.user.id, projectId);
+
+    // 🔥 DELETE CASCADE (manual for safety)
+    await prisma.task.deleteMany({
+      where: { projectId },
+    });
+
+    await prisma.projectMember.deleteMany({
+      where: { projectId },
+    });
+
+    await prisma.project.delete({
+      where: { id: projectId },
+    });
+
+    return successResponse({ message: "Project deleted" });
+  },
 );

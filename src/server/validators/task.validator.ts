@@ -2,10 +2,10 @@ import { z } from "zod";
 
 // Reusable enums for consistency across the app
 export const TaskPriority = z.enum(["LOW", "MEDIUM", "HIGH"]);
-export const TaskStatus = z.enum(["TODO", "IN_PROGRESS", "DONE"]);
+export const TaskStatus = z.enum(["PENDING", "IN_PROGRESS", "DONE"]);
 
 // =============================================
-
+export type TaskStatusType = z.infer<typeof TaskStatus>;
 export const createTaskSchema = z.object({
   title: z
     .string()
@@ -41,3 +41,5 @@ export const updateTaskSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(2000).optional(),
 });
+export type UpdateTaskStatusInput = z.infer<typeof updateTaskStatusSchema>;
+export type CreateTaskInput = z.infer<typeof createTaskSchema>;

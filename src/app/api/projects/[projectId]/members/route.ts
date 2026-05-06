@@ -1,34 +1,36 @@
 import { getAuthSession } from "@/server/lib/auth";
 import { withErrorHandling } from "@/server/lib/with-errors";
 import { successResponse } from "@/server/lib/api-response";
-import { requireProjectMember } from "@/server/services/project.service";
-import { prisma } from "@/server/lib/prisma";
+import { handleAddMember } from "@/server/controllers/project.controller";
 
 type ParamsContext = {
-  params: {
-    projectId: string;
-  };
+  params: Promise<{ projectId: string }>;
 };
 
-export const GET = withErrorHandling<ParamsContext>(
-  async (_req, { params }) => {
+export const POST = withErrorHandling<ParamsContext>(
+  async (req: Request, context) => {
     const session = await getAuthSession();
 
-    await requireProjectMember(session.user.id, params.projectId);
+    if (!session) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized" }),
+        { status: 401 }
+      );
+    }
+if (!context || !context.params) {
+      throw new Error("Missing parameters");
+    }
+    const params = await context.params;
+    const projectId = params.projectId;
 
-    const members = await prisma.projectMember.findMany({
-      where: { projectId: params.projectId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-    });
+    const body = await req.json();
 
-    return successResponse(members);
+    const result = await handleAddMember(
+      session.user.id, // 🔥 REQUIRED
+      projectId,
+      body
+    );
+
+    return successResponse(result);
   }
 );

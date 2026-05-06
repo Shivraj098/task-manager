@@ -1,47 +1,46 @@
 import { prisma } from "@/server/lib/prisma";
+import { Status } from "@prisma/client";
 
-export async function getDashboardData(userId: string) {
-  // get all projects user belongs to
-  const memberships = await prisma.projectMember.findMany({
-    where: { userId },
-    select: { projectId: true },
-  });
+type DashboardData = {
+  totalTasks: number;
+  tasksByStatus: Record<Status, number>;
+  overdueTasks: number;
+};
 
-  const projectIds = memberships.map((m) => m.projectId);
-
+export async function getDashboardData(
+  userId: string
+): Promise<DashboardData> {
+  // ONLY tasks assigned to user
   const tasks = await prisma.task.findMany({
     where: {
-      projectId: { in: projectIds },
+      assignedToId: userId,
     },
   });
 
-  const totalTasks = tasks.length;
-
-  const tasksByStatus = {
-    TODO: tasks.filter((t) => t.status === "TODO").length,
-    IN_PROGRESS: tasks.filter((t) => t.status === "IN_PROGRESS").length,
-    DONE: tasks.filter((t) => t.status === "DONE").length,
+  const tasksByStatus: Record<Status, number> = {
+    PENDING: 0,
+    IN_PROGRESS: 0,
+    DONE: 0,
   };
 
-  const overdueTasks = tasks.filter(
-    (t) =>
-      t.dueDate &&
-      new Date(t.dueDate) < new Date() &&
-      t.status !== "DONE"
-  ).length;
+  let overdueTasks = 0;
+  const now = new Date();
 
-  const tasksPerUser: Record<string, number> = {};
+  for (const task of tasks) {
+    tasksByStatus[task.status]++;
 
-  tasks.forEach((task) => {
-    if (!task.assignedToId) return;
-    tasksPerUser[task.assignedToId] =
-      (tasksPerUser[task.assignedToId] || 0) + 1;
-  });
+    if (
+      task.dueDate &&
+      task.status !== "DONE" &&
+      task.dueDate < now
+    ) {
+      overdueTasks++;
+    }
+  }
 
   return {
-    totalTasks,
+    totalTasks: tasks.length,
     tasksByStatus,
     overdueTasks,
-    tasksPerUser,
   };
 }

@@ -1,11 +1,12 @@
-import { NextResponse } from "next/server";
 import { getAuthSession } from "@/server/lib/auth";
-import { handleGetDashboard } from "@/server/controllers/dashboard.controller";
+import { getDashboardData } from "@/server/services/dashboard.service";
+import { successResponse, errorResponse } from "@/server/lib/api-response";
 
 export async function GET() {
   const session = await getAuthSession();
+  if (!session) return errorResponse("Unauthorized", 401);
 
-  const data = await handleGetDashboard(session.user.id);
+  const data = await getDashboardData(session.user.id);
 
-  return NextResponse.json(data);
+  return successResponse(data);
 }

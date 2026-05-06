@@ -9,14 +9,36 @@ export default function SignupPage() {
     password: "",
   });
 
-  const handleSignup = async () => {
-    await fetch("/api/auth/signup", {
-      method: "POST",
-      body: JSON.stringify(form),
-    });
+  const [error, setError] = useState(null);
 
-    alert("User created. Now login.");
-  };
+  const handleSignup = async () => {
+  setError(null);
+
+  const res = await fetch("/api/auth/signup", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(form),
+  });
+
+  
+
+  const data = await res.json();
+
+  if (!res.ok) {
+  console.error(data);
+  setError(data.issues?.[0]?.message || data.error);
+  return;
+}
+
+  if (!data.success) {
+    setError(data.error);
+    return;
+  }
+
+  window.location.href = "/login";
+};
 
   return (
     <div className="flex h-screen items-center justify-center">
