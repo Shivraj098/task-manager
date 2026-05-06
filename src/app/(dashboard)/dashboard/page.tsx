@@ -1,5 +1,7 @@
 "use client";
-
+import { apiClient } from "@/lib/api-client";
+import { useApi } from "@/hooks/api/use-api";
+import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { pusherClient } from "@/server/lib/pusher-client";
@@ -22,16 +24,17 @@ type Project = {
 export default function DashboardPage() {
   const router = useRouter();
 
+  const { execute } = useApi();
+  const { showToast } = useToast();
+
   const [authLoading, setAuthLoading] = useState(true);
 
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectName, setProjectName] = useState("");
 
-  const [loading, setLoading] = useState(true);
+  const [isloading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-
-  const [error, setError] = useState<string | null>(null);
 
   // =========================
   // AUTH CHECK
@@ -67,81 +70,51 @@ export default function DashboardPage() {
   // =========================
   // SAFE FETCH
   // =========================
-  const safeFetch = useCallback(
-    async (fn: () => Promise<Response>) => {
-      try {
-        const res = await fn();
-
-        if (res.status === 401) {
-          router.push("/login");
-          return null;
-        }
-
-        const json = await res.json();
-
-        if (!res.ok || !json.success) {
-          setError(json.error || "Something went wrong"); // ✅ FIXED (removed duplicate)
-          return null;
-        }
-
-        return json.data;
-      } catch (err) {
-        console.error("Network error:", err);
-        setError("Network error. Please try again.");
-        return null;
-      }
-    },
-    [router],
-  );
 
   // =========================
   // FETCH DASHBOARD (USING SAFE FETCH)
   // =========================
   const fetchDashboard = useCallback(async () => {
-    const data = await safeFetch(() =>
-      fetch("/api/dashboard", {
-        credentials: "include",
-      }),
+    const data = await execute(() =>
+      apiClient<DashboardData>("/api/dashboard"),
     );
 
-    if (data) {
-      setDashboard(data);
-      console.log("Dashboard updated:", data);
+    if (!data) {
+      showToast("Failed to load dashboard", "error");
+
+      return;
     }
-  }, [safeFetch]);
 
-  
-
-
+    setDashboard(data);
+  }, [execute, showToast]);
 
   // =========================
   // FETCH PROJECTS
   // =========================
   const fetchProjects = useCallback(async () => {
-    const data = await safeFetch(() =>
-      fetch("/api/projects", {
-        credentials: "include",
-      }),
-    );
+    const data = await execute(() => apiClient<Project[]>("/api/projects"));
 
-    if (data) setProjects(data);
-  }, [safeFetch]);
+    if (!data) {
+      showToast("Failed to load projects", "error");
 
+      return;
+    }
+
+    setProjects(data);
+  }, [execute, showToast]);
   useEffect(() => {
-  const channel = pusherClient.subscribe("dashboard-global");
+    const channel = pusherClient.subscribe("dashboard-global");
 
-  channel.bind("dashboard-updated", async () => {
-    await fetchDashboard();
-    await fetchProjects();
-  });
+    channel.bind("dashboard-updated", async () => {
+      await fetchDashboard();
+      await fetchProjects();
+    });
 
-  return () => {
-    channel.unbind_all();
-    pusherClient.unsubscribe("dashboard-global");
-  };
-}, [fetchDashboard, fetchProjects]);
-
-
+    return () => {
+      channel.unbind_all();
+      pusherClient.unsubscribe("dashboard-global");
+    };
+  }, [fetchDashboard, fetchProjects]);
 
   // =========================
   // LOAD DATA
@@ -172,36 +145,48 @@ export default function DashboardPage() {
   const handleCreateProject = async () => {
     if (!projectName.trim()) return;
 
-    setCreating(true);
+    try {
+      setCreating(true);
 
-    const result = await safeFetch(() =>
-      fetch("/api/projects", {
+      const data = await apiClient<Project[]>("/api/projects", {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: projectName }),
-      }),
-    );
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: projectName,
+        }),
+      });
 
-    if (result) {
-      fetchProjects(); // ✅ FIXED: refresh on success
+      setProjects(data);
+
+      setProjectName("");
+
+      showToast("Project created");
+    } catch (error) {
+      console.error(error);
+
+      showToast("Failed to create project", "error");
+    } finally {
+      setCreating(false);
     }
-
-    setProjectName("");
-    setCreating(false);
   };
 
   // =========================
   // AUTH LOADING
   // =========================
   if (authLoading) {
-    return <div className="space-y-8 p-4 sm:p-6 lg:p-8">Checking authentication...</div>;
+    return (
+      <div className="space-y-8 p-4 sm:p-6 lg:p-8">
+        Checking authentication...
+      </div>
+    );
   }
 
   // =========================
   // DATA LOADING
   // =========================
-  if (loading) {
+  if (isloading) {
     return (
       <div className="p-6 space-y-6 animate-pulse">
         <div className="h-8 bg-gray-200 rounded w-40" />
@@ -228,13 +213,6 @@ export default function DashboardPage() {
           </p>
         </div>
       </div>
-
-      {/* ERROR */}
-      {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-          {error}
-        </div>
-      )}
 
       {/* STATS */}
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
@@ -351,7 +329,7 @@ export default function DashboardPage() {
                   </div>
 
                   <div
-  className="
+                    className="
     rounded-full
     bg-gray-100
     transition
@@ -371,13 +349,7 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({
-  title,
-  value,
-}: {
-  title: string;
-  value: number;
-}) {
+function StatCard({ title, value }: { title: string; value: number }) {
   return (
     <div
       className="
@@ -391,14 +363,10 @@ function StatCard({
         hover:shadow-lg
       "
     >
-      <p className="text-sm font-medium text-gray-500">
-        {title}
-      </p>
+      <p className="text-sm font-medium text-gray-500">{title}</p>
 
       <div className="mt-4 flex items-end justify-between">
-        <h3 className="text-4xl font-bold tracking-tight">
-          {value}
-        </h3>
+        <h3 className="text-4xl font-bold tracking-tight">{value}</h3>
 
         <div className="h-12 w-12 rounded-2xl bg-gray-100" />
       </div>

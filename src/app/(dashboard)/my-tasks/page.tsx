@@ -1,6 +1,8 @@
 "use client";
-
-import { useEffect, useState } from "react";
+import { apiClient } from "@/lib/api-client";
+import { useApi } from "@/hooks/api/use-api";
+import { useToast } from "@/hooks/use-toast";
+import { useCallback, useEffect, useState } from "react";
 import { pusherClient } from "@/server/lib/pusher-client";
 type Task = {
   id: string;
@@ -15,61 +17,68 @@ type Task = {
 export default function MyTasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-
+  const { execute } = useApi();
+  const { showToast } = useToast();
   // 🔹 Segmentation
   const pending = tasks.filter((t) => t.status === "PENDING");
   const inProgress = tasks.filter((t) => t.status === "IN_PROGRESS");
   const completed = tasks.filter((t) => t.status === "DONE");
 
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     try {
-      const res = await fetch("/api/tasks/me", {
-        credentials: "include",
-      });
+      const data = await execute(() => apiClient<Task[]>("/api/tasks/me"));
 
-      const json = await res.json();
+      if (!data) {
+        showToast("Failed to load tasks", "error");
 
-      if (!res.ok || !json.success) {
-        console.error("Failed to fetch tasks:", json);
         return;
       }
 
-      setTasks(json.data ?? []);
-    } catch (err) {
-      console.error("Error fetching tasks:", err);
+      setTasks(data);
+    } catch (error) {
+      console.error(error);
+
+      showToast("Something went wrong", "error");
     } finally {
       setLoading(false);
     }
-  };
+  }, [execute, showToast]);
 
   useEffect(() => {
-  const channel = pusherClient.subscribe("dashboard-global");
+    const channel = pusherClient.subscribe("dashboard-global");
 
-  channel.bind("dashboard-updated", async () => {
-    await fetchTasks();
-  });
+    channel.bind("dashboard-updated", async () => {
+      await fetchTasks();
+    });
 
-  return () => {
-    channel.unbind_all();
-    pusherClient.unsubscribe("dashboard-global");
-  };
-}, []);
-
-
+    return () => {
+      channel.unbind_all();
+      pusherClient.unsubscribe("dashboard-global");
+    };
+  }, [fetchTasks]);
 
   useEffect(() => {
     const init = async () => {
       await fetchTasks();
     };
     init();
-  }, []);
+  }, [fetchTasks]);
 
   // 🔹 Actions
   const startTask = async (taskId: string) => {
-    await fetch(`/api/tasks/${taskId}/start`, {
-      method: "PATCH",
-      credentials: "include",
-    });
+    const result = await execute(() =>
+      apiClient(`/api/tasks/${taskId}/start`, {
+        method: "PATCH",
+      }),
+    );
+
+    if (!result) {
+      showToast("Failed to start task", "error");
+
+      return;
+    }
+
+    showToast("Task started");
     await fetchTasks();
   };
 
@@ -77,10 +86,19 @@ export default function MyTasksPage() {
     const confirmed = confirm("Are you sure you want to complete this task?");
     if (!confirmed) return;
 
-    await fetch(`/api/tasks/${taskId}/complete`, {
-      method: "PATCH",
-      credentials: "include",
-    });
+    const result = await execute(() =>
+      apiClient(`/api/tasks/${taskId}/complete`, {
+        method: "PATCH",
+        credentials: "include",
+      }),
+    );
+
+    if (!result) {
+      showToast("Failed to complete task", "error");
+      return;
+    }
+
+    showToast("Task completed");
     await fetchTasks();
   };
 
@@ -93,8 +111,13 @@ export default function MyTasksPage() {
           {[...Array(3)].map((_, i) => (
             <div
               key={i}
-              className="h-32animate-pulserounded-3xlborder
- border-gray-200 bg-white"
+              className="
+              h-32 
+              animate-pulse
+              rounded-3xl
+              border
+ border-gray-200
+  bg-white"
             />
           ))}
         </div>
