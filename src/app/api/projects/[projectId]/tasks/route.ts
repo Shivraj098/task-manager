@@ -3,6 +3,10 @@ import { createTaskSchema } from "@/server/validators/task.validator";
 import { errorResponse, successResponse } from "@/server/lib/api-response";
 import { withErrorHandling } from "@/server/lib/with-errors";
 import { createTask, getProjectTasks } from "@/server/services/task.service";
+import {
+  triggerDashboardUpdate,
+  triggerProjectUpdate,
+} from "@/server/lib/realtime";
 
 type ParamsContext = {
   params: Promise<{ projectId: string }>;
@@ -25,9 +29,16 @@ export const POST = withErrorHandling<ParamsContext>(
       ...parsed,
       assignedToId: parsed.assignedToId ?? undefined,
     });
+    await triggerProjectUpdate(projectId);
+
+    if (task.assignedToId) {
+      await triggerDashboardUpdate(task.assignedToId);
+    }
+
+    await triggerDashboardUpdate(session.user.id);
 
     return successResponse(task);
-  }
+  },
 );
 
 export const GET = withErrorHandling<ParamsContext>(
@@ -55,5 +66,5 @@ export const GET = withErrorHandling<ParamsContext>(
     }
 
     return successResponse(filtered);
-  }
+  },
 );

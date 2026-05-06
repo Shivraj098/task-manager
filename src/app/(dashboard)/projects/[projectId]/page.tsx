@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback, use } from "react";
 import { useToast, ToastContainer } from "@/components/ui/toast";
-import { notify } from "@/server/lib/event-bus";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { pusherClient } from "@/server/lib/pusher-client";
 type Member = {
   user: {
     id: string;
@@ -86,6 +86,19 @@ export default function ProjectPage({
     setData(data);
     setLoading(false);
   }, [projectId, safeFetch]);
+
+  useEffect(() => {
+  const channel = pusherClient.subscribe(`project-${projectId}`);
+
+  channel.bind("project-updated", async () => {
+    await fetchProject();
+  });
+
+  return () => {
+    channel.unbind_all();
+    pusherClient.unsubscribe(`project-${projectId}`);
+  };
+}, [projectId, fetchProject]);
 
   const fetchUsers = useCallback(async () => {
     const data = await safeFetch(() =>
@@ -196,11 +209,9 @@ export default function ProjectPage({
         );
 
         showToast("Project deleted", "success");
-        notify(); // 🔥 IMPORTANT
         window.location.href = "/dashboard";
       }
 
-      notify(); // 🔥 SYNC DASHBOARD
     } catch {
       showToast("Something went wrong", "error");
     } finally {

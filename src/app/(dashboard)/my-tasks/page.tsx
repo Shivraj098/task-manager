@@ -1,8 +1,7 @@
 "use client";
 
-import { notify } from "@/server/lib/event-bus";
 import { useEffect, useState } from "react";
-
+import { pusherClient } from "@/server/lib/pusher-client";
 type Task = {
   id: string;
   title: string;
@@ -44,9 +43,23 @@ export default function MyTasksPage() {
   };
 
   useEffect(() => {
+  const channel = pusherClient.subscribe("dashboard-global");
+
+  channel.bind("dashboard-updated", async () => {
+    await fetchTasks();
+  });
+
+  return () => {
+    channel.unbind_all();
+    pusherClient.unsubscribe("dashboard-global");
+  };
+}, []);
+
+
+
+  useEffect(() => {
     const init = async () => {
       await fetchTasks();
-      notify();
     };
     init();
   }, []);
@@ -58,7 +71,6 @@ export default function MyTasksPage() {
       credentials: "include",
     });
     await fetchTasks();
-    notify(); // Notify other clients about the update
   };
 
   const completeTask = async (taskId: string) => {
@@ -70,7 +82,6 @@ export default function MyTasksPage() {
       credentials: "include",
     });
     await fetchTasks();
-    notify();
   };
 
   if (loading) {

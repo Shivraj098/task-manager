@@ -2,8 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { subscribe } from "@/server/lib/event-bus"; // ✅ FIXED PATH
-
+import { pusherClient } from "@/server/lib/pusher-client";
 type DashboardData = {
   totalTasks: number;
   tasksByStatus: {
@@ -111,14 +110,9 @@ export default function DashboardPage() {
     }
   }, [safeFetch]);
 
-  // 🔥 EVENT BUS SYNC
-  useEffect(() => {
-    const unsubscribe = subscribe(() => {
-      fetchDashboard();
-    });
+  
 
-    return unsubscribe;
-  }, [fetchDashboard]);
+
 
   // =========================
   // FETCH PROJECTS
@@ -132,6 +126,22 @@ export default function DashboardPage() {
 
     if (data) setProjects(data);
   }, [safeFetch]);
+
+  useEffect(() => {
+  const channel = pusherClient.subscribe("dashboard-global");
+
+  channel.bind("dashboard-updated", async () => {
+    await fetchDashboard();
+    await fetchProjects();
+  });
+
+  return () => {
+    channel.unbind_all();
+    pusherClient.unsubscribe("dashboard-global");
+  };
+}, [fetchDashboard, fetchProjects]);
+
+
 
   // =========================
   // LOAD DATA
