@@ -1,6 +1,6 @@
 import { getAuthSession } from "@/server/lib/auth";
 import { withErrorHandling } from "@/server/lib/with-errors";
-import { errorResponse, successResponse } from "@/server/lib/api-response";
+import {  successResponse } from "@/server/lib/api-response";
 import { prisma } from "@/server/lib/prisma";
 import { ValidationError,ForbiddenError,NotFoundError,UnauthorizedError } from "@/server/lib/errors";
 type ParamsContext = {

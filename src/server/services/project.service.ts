@@ -1,24 +1,42 @@
 import { prisma } from "@/server/lib/prisma";
+import { ValidationError } from "../lib/errors";
 
 /**
  * Create a new project and assign creator as ADMIN
  */
 export async function createProject(userId: string, name: string) {
-  if (!name.trim()) {
-    throw new Error("Project name required");
+  const trimmedName = name.trim();
+
+  if (!trimmedName) {
+    throw new ValidationError("Project name required");
   }
 
-  return prisma.project.create({
-    data: {
-      name: name.trim(),
-      createdById: userId,
-      members: {
-        create: {
-          userId,
-          role: "ADMIN",
+  return prisma.$transaction(async (tx) => {
+    return tx.project.create({
+      data: {
+        name: trimmedName,
+        createdById: userId,
+        members: {
+          create: {
+            userId,
+            role: "ADMIN",
+          },
         },
       },
-    },
+      include: {
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
   });
 }
 
@@ -67,37 +85,37 @@ export async function addMember(
   projectId: string,
   email: string,
 ) {
-  // 🔒 Only admin can add members
-  await requireProjectAdmin(userId, projectId);
+  return prisma.$transaction(async (tx) => {
+    await requireProjectAdmin(userId, projectId);
 
-  const user = await prisma.user.findUnique({
-    where: { email },
-  });
+    const user = await tx.user.findUnique({
+      where: { email },
+    });
 
-  if (!user) {
-    throw new Error("User not found");
-  }
+    if (!user) {
+      throw new Error("User not found");
+    }
 
-  // 🚫 Prevent duplicates
-  const existing = await prisma.projectMember.findUnique({
-    where: {
-      userId_projectId: {
+    const existing = await tx.projectMember.findUnique({
+      where: {
+        userId_projectId: {
+          userId: user.id,
+          projectId,
+        },
+      },
+    });
+
+    if (existing) {
+      throw new Error("User already a member");
+    }
+
+    return tx.projectMember.create({
+      data: {
         userId: user.id,
         projectId,
+        role: "MEMBER",
       },
-    },
-  });
-
-  if (existing) {
-    throw new Error("User already a member");
-  }
-
-  return prisma.projectMember.create({
-    data: {
-      userId: user.id,
-      projectId,
-      role: "MEMBER",
-    },
+    });
   });
 }
 

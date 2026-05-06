@@ -1,6 +1,12 @@
 import { prisma } from "@/server/lib/prisma";
 import { requireProjectMember } from "./project.service";
 import type { TaskStatusType } from "@/server/validators/task.validator";
+import {
+  ForbiddenError,
+  NotFoundError,
+  UnauthorizedError,
+  ValidationError,
+} from "../lib/errors";
 
 type CreateTaskInput = {
   title: string;
@@ -28,7 +34,7 @@ export async function createTask(
     });
 
     if (!member) {
-      throw new Error("Assigned user is not part of this project");
+      throw new ForbiddenError("Assigned user is not part of this project");
     }
   }
 
@@ -75,87 +81,94 @@ export async function updateTaskStatus(
   taskId: string,
   newStatus: TaskStatusType,
 ) {
-  const task = await prisma.task.findUnique({
-    where: { id: taskId },
-  });
+  return prisma.$transaction(async (tx) => {
+    const task = await tx.task.findUnique({
+      where: { id: taskId },
+    });
 
-  if (!task) {
-    throw new Error("Task not found");
-  }
+    if (!task) {
+      throw new NotFoundError("Task not found");
+    }
 
-  await requireProjectMember(userId, task.projectId);
+    await requireProjectMember(userId, task.projectId);
 
-  // 🔥 LIFECYCLE ENFORCEMENT
-  const currentStatus = task.status;
+    const currentStatus = task.status;
 
-  const allowedTransitions: Record<TaskStatusType, TaskStatusType[]> = {
-    PENDING: ["IN_PROGRESS"],
-    IN_PROGRESS: ["DONE"],
-    DONE: [],
-  };
+    const allowedTransitions: Record<TaskStatusType, TaskStatusType[]> = {
+      PENDING: ["IN_PROGRESS"],
+      IN_PROGRESS: ["DONE"],
+      DONE: [],
+    };
 
-  if (
-    !allowedTransitions[currentStatus as TaskStatusType].includes(newStatus)
-  ) {
-    throw new Error(
-      `Invalid status transition from ${currentStatus} to ${newStatus}`,
-    );
-  }
+    if (
+      !allowedTransitions[currentStatus as TaskStatusType].includes(newStatus)
+    ) {
+      throw new ValidationError(
+        `Invalid status transition from ${currentStatus} to ${newStatus}`,
+      );
+    }
 
-  return prisma.task.update({
-    where: { id: taskId },
-    data: {
-      status: newStatus,
-    },
+    return tx.task.update({
+      where: { id: taskId },
+      data: {
+        status: newStatus,
+      },
+    });
   });
 }
 
 export async function startTask(userId: string, taskId: string) {
-  const task = await prisma.task.findUnique({
-    where: { id: taskId },
-  });
+  return prisma.$transaction(async (tx) => {
+    const task = await tx.task.findUnique({
+      where: { id: taskId },
+    });
 
-  if (!task) throw new Error("Task not found");
+    if (!task) {
+      throw new NotFoundError("Task not found");
+    }
 
-  // 🔒 ONLY assigned user can start
-  if (task.assignedToId !== userId) {
-    throw new Error("Only assigned user can start this task");
-  }
+    if (task.assignedToId !== userId) {
+      throw new ValidationError("Only assigned user can start this task");
+    }
 
-  if (task.status !== "PENDING") {
-    throw new Error("Task must be in PENDING state");
-  }
+    if (task.status !== "PENDING") {
+      throw new ValidationError("Task must be in PENDING state");
+    }
 
-  return prisma.task.update({
-    where: { id: taskId },
-    data: {
-      status: "IN_PROGRESS",
-      startedAt: new Date(),
-    },
+    return tx.task.update({
+      where: { id: taskId },
+      data: {
+        status: "IN_PROGRESS",
+        startedAt: new Date(),
+      },
+    });
   });
 }
 
 export async function completeTask(userId: string, taskId: string) {
-  const task = await prisma.task.findUnique({
-    where: { id: taskId },
-  });
+  return prisma.$transaction(async (tx) => {
+    const task = await tx.task.findUnique({
+      where: { id: taskId },
+    });
 
-  if (!task) throw new Error("Task not found");
+    if (!task) {
+      throw new NotFoundError("Task not found");
+    }
 
-  // 🔒 ONLY assigned user can complete
-  if (task.assignedToId !== userId) {
-    throw new Error("Only assigned user can complete this task");
-  }
+    if (task.assignedToId !== userId) {
+      throw new UnauthorizedError("Only assigned user can complete this task");
+    }
 
-  if (task.status !== "IN_PROGRESS") {
-    throw new Error("Task must be IN_PROGRESS to complete");
-  }
+    if (task.status !== "IN_PROGRESS") {
+      throw new ValidationError("Task must be IN_PROGRESS to complete");
+    }
 
-  return prisma.task.update({
-    where: { id: taskId },
-    data: {
-      status: "DONE",
-      completedAt: new Date(),
-    },
+    return tx.task.update({
+      where: { id: taskId },
+      data: {
+        status: "DONE",
+        completedAt: new Date(),
+      },
+    });
   });
 }

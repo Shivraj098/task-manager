@@ -86,17 +86,20 @@ export const DELETE = withErrorHandling<ParamsContext>(
     // 🔐 ADMIN CHECK
     await requireProjectAdmin(session.user.id, projectId);
 
-    // 🔥 DELETE CASCADE (manual for safety)
-    await prisma.task.deleteMany({
-      where: { projectId },
-    });
+    //  DELETE CASCADE (mtranscation to ensure all-or-nothing)
 
-    await prisma.projectMember.deleteMany({
-      where: { projectId },
-    });
+    await prisma.$transaction(async (tx) => {
+      await tx.task.deleteMany({
+        where: { projectId },
+      });
 
-    await prisma.project.delete({
-      where: { id: projectId },
+      await tx.projectMember.deleteMany({
+        where: { projectId },
+      });
+
+      await tx.project.delete({
+        where: { id: projectId },
+      });
     });
 
     return successResponse({ message: "Project deleted" });
