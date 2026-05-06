@@ -1,13 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f5f7fb;
-  --foreground: #111827;
+  --background: #f4f7fb;
+  --foreground: #0f172a;
 
-  --card: #ffffff;
-  --border: #e5e7eb;
+  --card: rgba(255, 255, 255, 0.82);
+  --card-solid: #ffffff;
 
-  --muted: #6b7280;
+  --border: rgba(226, 232, 240, 0.9);
+
+  --muted: #64748b;
+  --muted-light: #94a3b8;
 
   --primary: #111827;
   --primary-foreground: #ffffff;
@@ -16,7 +19,20 @@
   --warning: #2563eb;
   --danger: #dc2626;
 
-  --radius: 18px;
+  --shadow-sm:
+    0 1px 2px rgba(15, 23, 42, 0.04);
+
+  --shadow-md:
+    0 8px 24px rgba(15, 23, 42, 0.06);
+
+  --shadow-lg:
+    0 20px 40px rgba(15, 23, 42, 0.08);
+
+  --radius-sm: 14px;
+  --radius-md: 18px;
+  --radius-lg: 28px;
+
+  --sidebar-width: 270px;
 }
 
 html,
@@ -26,13 +42,22 @@ body {
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(
+      circle at top,
+      rgba(255, 255, 255, 0.95),
+      rgba(244, 247, 251, 1)
+    );
+
   color: var(--foreground);
+
   font-family:
     var(--font-geist-sans),
     ui-sans-serif,
     system-ui,
     sans-serif;
+
+  text-rendering: optimizeLegibility;
 }
 
 /* Better defaults */
@@ -47,16 +72,56 @@ button {
   outline: none;
 }
 
+/* Glass cards */
+.glass-card {
+  background: var(--card);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+
+  border: 1px solid var(--border);
+
+  box-shadow: var(--shadow-md);
+}
+
+/* Smooth animations */
+* {
+  transition-property:
+    background-color,
+    border-color,
+    color,
+    opacity,
+    box-shadow,
+    transform;
+
+  transition-duration: 180ms;
+
+  transition-timing-function: ease;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #d1d5db;
+  background: #cbd5e1;
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+  background: #94a3b8;
+}
+
+/* Selection */
+::selection {
+  background: rgba(37, 99, 235, 0.18);
+}
+
+/* Better focus accessibility */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  box-shadow:
+    0 0 0 4px rgba(37, 99, 235, 0.12);
 }

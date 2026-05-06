@@ -13,7 +13,7 @@ export async function triggerProjectUpdate(projectId: string) {
 
 export async function triggerDashboardUpdate(_userId: string) {
   await pusherServer.trigger(
-    "dashboard-global",
+    `dashboard-global`,
     "dashboard-updated",
     {
       timestamp: Date.now(),
