@@ -7,6 +7,10 @@ import { pusherClient } from "@/server/lib/pusher-client";
 import FormInput from "@/components/shared/forms/FormInput";
 import FormTextarea from "@/components/shared/forms/FormTextArea";
 import FormSection from "@/components/shared/forms/FormSection";
+
+import { apiClient } from "@/lib/api-client";
+import { useApi } from "@/hooks/api/use-api";
+import { useRouter } from "next/navigation";
 type Member = {
   user: {
     id: string;
@@ -20,7 +24,11 @@ type TaskStatus = "PENDING" | "IN_PROGRESS" | "DONE";
 type Task = {
   id: string;
   title: string;
+  description?: string | null;
+  priority: "LOW" | "MEDIUM" | "HIGH";
   status: TaskStatus;
+  createdAt?: string;
+
   assignedTo?: {
     id: string;
     name: string;
@@ -39,6 +47,8 @@ export default function ProjectPage({
 }: {
   params: Promise<{ projectId: string }>;
 }) {
+  const router = useRouter();
+  const { execute } = useApi();
   const { projectId } = use(params);
   const [confirm, setConfirm] = useState<{
     open: boolean;
@@ -51,11 +61,9 @@ export default function ProjectPage({
   const [actionLoading, setActionLoading] = useState(false);
   const { toasts, showToast } = useToast();
   const [taskTitle, setTaskTitle] = useState("");
-  const [selectedUser, setSelectedUser] = useState("");
   const [memberEmail, setMemberEmail] = useState("");
 
-  const [allUsers, setAllUsers] = useState<Member["user"][]>([]);
-  const [selectedMemberToAdd, setSelectedMemberToAdd] = useState("");
+  
 
   const [taskDescription, setTaskDescription] = useState("");
   const [taskPriority, setTaskPriority] = useState<"LOW" | "MEDIUM" | "HIGH">(
@@ -65,38 +73,26 @@ export default function ProjectPage({
   const [assignedToId, setAssignedToId] = useState("");
 
   // ✅ Safe fetch wrapper
-  const safeFetch = useCallback(
-    async (fn: () => Promise<Response>) => {
-      try {
-        const res = await fn();
-        const json = await res.json();
-
-        if (!res.ok || !json.success) {
-          showToast(json.error || "Something went wrong", "error");
-          return null;
-        }
-
-        return json.data;
-      } catch {
-        showToast("Network error", "error");
-        return null;
-      }
-    },
-    [showToast],
-  );
 
   const fetchProject = useCallback(async () => {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const data = await safeFetch(() =>
-      fetch(`/api/projects/${projectId}`, {
-        credentials: "include",
-      }),
-    );
+      const project = await execute(() =>
+        apiClient<ProjectData>(`/api/projects/${projectId}`),
+      );
 
-    setData(data);
-    setLoading(false);
-  }, [projectId, safeFetch]);
+      if (!project) {
+        showToast("Failed to load project", "error");
+
+        return;
+      }
+
+      setData(project);
+    } finally {
+      setLoading(false);
+    }
+  }, [execute, projectId, showToast]);
 
   useEffect(() => {
     const channel = pusherClient.subscribe(`project-${projectId}`);
@@ -111,72 +107,79 @@ export default function ProjectPage({
     };
   }, [projectId, fetchProject]);
 
-  const fetchUsers = useCallback(async () => {
-    const data = await safeFetch(() =>
-      fetch("/api/users", { credentials: "include" }),
-    );
 
-    if (data) setAllUsers(data);
-  }, [safeFetch]);
 
   useEffect(() => {
     const init = async () => {
       await fetchProject();
-      await fetchUsers();
     };
     init();
-  }, [fetchProject, fetchUsers]);
+  }, [fetchProject]);
 
   const handleCreateTask = async () => {
     if (!taskTitle.trim()) return;
 
-    setActionLoading(true);
+    try {
+      setActionLoading(true);
 
-    await safeFetch(() =>
-      fetch(`/api/projects/${projectId}/tasks`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: taskTitle.trim(),
-          description: taskDescription.trim(),
-          priority: taskPriority,
-          assignedToId: assignedToId || undefined,
+      const createdTask = await execute(() =>
+        apiClient(`/api/projects/${projectId}/tasks`, {
+          method: "POST",
+          body: JSON.stringify({
+            title: taskTitle.trim(),
+            description: taskDescription.trim(),
+            priority: taskPriority,
+            assignedToId: assignedToId || undefined,
+          }),
         }),
-      }),
-    );
+      );
 
-    setTaskTitle("");
-    setTaskDescription("");
-    setTaskPriority("MEDIUM");
-    setAssignedToId("");
-    await fetchProject();
+      if (!createdTask) {
+        showToast("Failed to create task", "error");
+        return;
+      }
 
-    setActionLoading(false);
+      showToast("Task created successfully", "success");
+
+      setTaskTitle("");
+      setTaskDescription("");
+      setTaskPriority("MEDIUM");
+      setAssignedToId("");
+
+      await fetchProject();
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const handleAddMember = async () => {
     if (!memberEmail.trim()) return;
 
-    setActionLoading(true);
+    try {
+      setActionLoading(true);
 
-    await safeFetch(() =>
-      fetch(`/api/projects/${projectId}/members`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: memberEmail.trim(),
+      const addedMember = await execute(() =>
+        apiClient(`/api/projects/${projectId}/members`, {
+          method: "POST",
+          body: JSON.stringify({
+            email: memberEmail.trim(),
+          }),
         }),
-      }),
-    );
+      );
 
-    showToast("Member added", "success");
+      if (!addedMember) {
+        showToast("Failed to add member", "error");
+        return;
+      }
 
-    setMemberEmail("");
-    await fetchProject();
+      showToast("Member added successfully", "success");
 
-    setActionLoading(false);
+      setMemberEmail("");
+
+      await fetchProject();
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const handleDeleteProject = async () => {
@@ -201,27 +204,35 @@ export default function ProjectPage({
 
     try {
       if (confirm.type === "delete-task" && confirm.taskId) {
-        await safeFetch(() =>
-          fetch(`/api/tasks/${confirm.taskId}`, {
+        const deletedTask = await execute(() =>
+          apiClient(`/api/tasks/${confirm.taskId}`, {
             method: "DELETE",
-            credentials: "include",
           }),
         );
+
+        if (!deletedTask) {
+          showToast("Failed to delete task", "error");
+          return;
+        }
 
         showToast("Task deleted", "success");
         await fetchProject();
       }
 
       if (confirm.type === "delete-project") {
-        await safeFetch(() =>
-          fetch(`/api/projects/${projectId}`, {
+        const deletedProject = await execute(() =>
+          apiClient(`/api/projects/${projectId}`, {
             method: "DELETE",
-            credentials: "include",
           }),
         );
 
+        if (!deletedProject) {
+          showToast("Failed to delete project", "error");
+          return;
+        }
+
         showToast("Project deleted", "success");
-        window.location.href = "/dashboard";
+        router.push("/dashboard");
       }
     } catch {
       showToast("Something went wrong", "error");
@@ -239,15 +250,24 @@ export default function ProjectPage({
     DONE: "bg-green-50 text-green-700 border border-green-200",
   };
 
-  if (loading) return <div className="p-6">Loading project...</div>;
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="h-12 w-64 rounded-2xl bg-gray-200" />
+
+        <div className="grid gap-6">
+          <div className="h-48 rounded-3xl bg-gray-200" />
+          <div className="h-64 rounded-3xl bg-gray-200" />
+          <div className="h-64 rounded-3xl bg-gray-200" />
+        </div>
+      </div>
+    );
+  }
   if (!data)
     return <div className="p-6 text-red-500">Failed to load project</div>;
 
   const activeTasks = data.tasks.filter((t) => t.status !== "DONE");
   const completedTasks = data.tasks.filter((t) => t.status === "DONE");
-
-  const existingIds = new Set(data.members.map((m) => m.user.id));
-  const availableUsers = allUsers.filter((u) => !existingIds.has(u.id));
 
   const renderTask = (task: Task, isCompleted = false) => {
     return (
@@ -289,7 +309,21 @@ export default function ProjectPage({
           <button
             disabled={actionLoading}
             onClick={() => handleDeleteTask(task.id)}
-            className="text-sm px-4 py-1.5 rounded-2xl bg-red-500 hover:bg-red-600 text-white transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+            className="
+opacity-0
+group-hover:opacity-100
+transition-opacity
+text-sm
+px-4
+py-1.5
+rounded-2xl
+bg-red-500
+hover:bg-red-600
+text-white
+active:scale-95
+disabled:cursor-not-allowed
+disabled:opacity-50
+"
           >
             Delete
           </button>
@@ -357,14 +391,20 @@ export default function ProjectPage({
         </FormSection>
 
         <div className="flex flex-wrap gap-2">
-          {data.members.map((m) => (
-            <div
-              key={m.user.id}
-              className="px-4 py-1.5 bg-gray-100 rounded-full text-sm font-medium"
-            >
-              {m.user.name}
+          {data.members.length === 0 ? (
+            <div className="text-sm text-gray-400">
+              No team members added yet.
             </div>
-          ))}
+          ) : (
+            data.members.map((m) => (
+              <div
+                key={m.user.id}
+                className="px-4 py-1.5 bg-gray-100 rounded-full text-sm font-medium"
+              >
+                {m.user.name}
+              </div>
+            ))
+          )}
         </div>
       </div>
 
@@ -510,7 +550,7 @@ export default function ProjectPage({
             No completed tasks yet.
           </div>
         ) : (
-          <div className="grid gap-4 opacity-75">
+          <div className="grid gap-4 ">
             {completedTasks.map((t) => renderTask(t, true))}
           </div>
         )}
