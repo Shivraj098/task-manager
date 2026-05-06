@@ -20,10 +20,9 @@ export default function Sidebar() {
   return (
     <aside
       className="
-        hidden
-        lg:flex
+        fixed left-0 top-0 z-40 hidden lg:flex
         h-screen
-        w-[270px]
+        w-67.5 shrink-0
         flex-col
         border-r
         border-white/40

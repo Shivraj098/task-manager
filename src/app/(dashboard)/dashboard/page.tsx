@@ -195,7 +195,7 @@ export default function DashboardPage() {
   // AUTH LOADING
   // =========================
   if (authLoading) {
-    return <div className="p-6">Checking authentication...</div>;
+    return <div className="space-y-8 p-4 sm:p-6 lg:p-8">Checking authentication...</div>;
   }
 
   // =========================
@@ -205,7 +205,7 @@ export default function DashboardPage() {
     return (
       <div className="p-6 space-y-6 animate-pulse">
         <div className="h-8 bg-gray-200 rounded w-40" />
-        <div className="grid grid-cols-4 gap-6">
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-24 bg-gray-200 rounded-xl" />
           ))}
@@ -321,7 +321,7 @@ export default function DashboardPage() {
             </p>
           </div>
         ) : (
-          <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-8 grid gap-6 md:grid-cols-2 2xl:grid-cols-3">
             {projects.map((p) => (
               <div
                 key={p.id}
