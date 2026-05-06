@@ -3,12 +3,13 @@ import { prisma } from "@/server/lib/prisma";
 import { withErrorHandling } from "@/server/lib/with-errors";
 import { successResponse } from "@/server/lib/api-response";
 import { handleGetProjects } from "@/server/controllers/project.controller";
-
+ 
+  import { UnauthorizedError, ValidationError } from "@/server/lib/errors";
 export const GET = withErrorHandling(async () => {
   const session = await getAuthSession();
 
   if (!session?.user?.id) {
-    throw new Error("Unauthorized");
+    throw new UnauthorizedError("Unauthorized");
   }
 
   const projects = await handleGetProjects(session.user.id);
@@ -20,13 +21,13 @@ export const POST = withErrorHandling(async (req: Request) => {
   const session = await getAuthSession();
 
   if (!session?.user?.id) {
-    throw new Error("Unauthorized");
+    throw new UnauthorizedError("Unauthorized");
   }
 
   const body = await req.json();
 
   if (!body.name) {
-    throw new Error("Project name required");
+    throw new ValidationError("Project name required");
   }
 
   await prisma.project.create({

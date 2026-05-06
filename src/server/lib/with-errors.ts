@@ -1,5 +1,8 @@
 import { ZodError } from "zod";
 
+import { errorResponse } from "./api-response";
+import { AppError } from "./errors";
+
 export function withErrorHandling<T>(
   handler: (req: Request, context?: T) => Promise<Response>
 ) {
@@ -9,30 +12,30 @@ export function withErrorHandling<T>(
     } catch (err: unknown) {
       console.error("API Error:", err);
 
-      // ✅ Handle Zod validation errors properly
+      // Zod validation
       if (err instanceof ZodError) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: "Validation error",
-            issues: err.issues,
-          }),
-          {
-            status: 400,
-            headers: { "Content-Type": "application/json" },
-          }
+        return errorResponse(
+          "Validation error",
+          400,
+          "VALIDATION_ERROR",
+          err.issues
         );
       }
 
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: err instanceof Error ? err.message : "Server error",
-        }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        }
+      // App errors
+      if (err instanceof AppError) {
+        return errorResponse(
+          err.message,
+          err.statusCode,
+          err.code
+        );
+      }
+
+      // Unknown fallback
+      return errorResponse(
+        "Internal server error",
+        500,
+        "INTERNAL_SERVER_ERROR"
       );
     }
   };

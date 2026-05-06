@@ -31,7 +31,7 @@ export function ToastContainer({ toasts }: { toasts: Toast[] }) {
         <div
           key={toast.id}
           className={`
-            min-w-[280px]
+            min-w-70
             rounded-2xl
             border
             px-4

@@ -3,7 +3,7 @@ import {
   getProjectTasks,
   updateTaskStatus,
 } from "../services/task.service";
-
+import { ValidationError } from "../lib/errors";
 import type {
   CreateTaskInput,
   UpdateTaskStatusInput,
@@ -18,7 +18,7 @@ export async function handleCreateTask(
   body: CreateTaskInput
 ) {
   if (!body.title) {
-    throw new Error("Title required");
+    throw new ValidationError("Title required");
   }
   const normalizedBody = {
     ...body,

@@ -4,7 +4,7 @@ import {
   addMember,
   
 } from "../services/project.service";
-
+import { ValidationError } from "../lib/errors";
 import {
   CreateProjectInput,
   AddMemberInput,
@@ -20,7 +20,7 @@ export async function handleCreateProject(
   const name = body.name?.trim();
 
   if (!name) {
-    throw new Error("Project name required");
+    throw new ValidationError("Project name required");
   }
 
   return createProject(userId, name);
@@ -44,7 +44,7 @@ export async function handleAddMember(
   const email = body.email?.trim().toLowerCase();
 
   if (!email) {
-    throw new Error("Email is required");
+    throw new ValidationError("Email is required");
   }
 
   return addMember(userId, projectId, email);
