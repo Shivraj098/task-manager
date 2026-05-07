@@ -3,7 +3,8 @@ import { apiClient } from "@/lib/api-client";
 import { useApi } from "@/hooks/api/use-api";
 import { useToast } from "@/hooks/use-toast";
 import { useCallback, useEffect, useState } from "react";
-import { pusherClient } from "@/server/lib/pusher-client";
+import { useRealtimeChannel } from "@/hooks/realtime/use-realtime-channel";
+import { REALTIME_EVENTS } from "@/lib/realtime-events";
 type Task = {
   id: string;
   title: string;
@@ -19,11 +20,12 @@ export default function MyTasksPage() {
   const [loading, setLoading] = useState(true);
   const { execute } = useApi();
   const { showToast } = useToast();
+  
   // 🔹 Segmentation
   const pending = tasks.filter((t) => t.status === "PENDING");
   const inProgress = tasks.filter((t) => t.status === "IN_PROGRESS");
   const completed = tasks.filter((t) => t.status === "DONE");
-
+const [userId, setUserId] = useState<string | null>(null);
   const fetchTasks = useCallback(async () => {
     try {
       const data = await execute(() => apiClient<Task[]>("/api/tasks/me"));
@@ -44,18 +46,7 @@ export default function MyTasksPage() {
     }
   }, [execute, showToast]);
 
-  useEffect(() => {
-    const channel = pusherClient.subscribe("dashboard-global");
 
-    channel.bind("dashboard-updated", async () => {
-      await fetchTasks();
-    });
-
-    return () => {
-      channel.unbind_all();
-      pusherClient.unsubscribe("dashboard-global");
-    };
-  }, [fetchTasks]);
 
   useEffect(() => {
     const init = async () => {
@@ -81,6 +72,30 @@ export default function MyTasksPage() {
     showToast("Task started");
     await fetchTasks();
   };
+
+  useEffect(() => {
+  const getSession = async () => {
+    const response = await fetch(
+      "/api/auth/session",
+    );
+
+    const session =
+      await response.json();
+
+    if (session?.user?.id) {
+      setUserId(session.user.id);
+    }
+  };
+
+  getSession();
+}, []);
+
+useRealtimeChannel({
+  channelName: `tasks-${userId}`,
+  eventName:
+    REALTIME_EVENTS.TASK_UPDATED,
+  callback: fetchTasks,
+});
 
   const completeTask = async (taskId: string) => {
     const confirmed = confirm("Are you sure you want to complete this task?");

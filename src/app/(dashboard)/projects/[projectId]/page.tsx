@@ -1,9 +1,14 @@
 "use client";
-
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import PageHeader from "@/components/shared/page-header";
 import { useEffect, useState, useCallback, use } from "react";
 import { useToast, ToastContainer } from "@/components/ui/toast";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
-import { pusherClient } from "@/server/lib/pusher-client";
+import { useRealtimeChannel } from "@/hooks/realtime/use-realtime-channel";
+import { REALTIME_EVENTS } from "@/lib/realtime-events";
 import FormInput from "@/components/shared/forms/FormInput";
 import FormTextarea from "@/components/shared/forms/FormTextArea";
 import FormSection from "@/components/shared/forms/FormSection";
@@ -63,8 +68,6 @@ export default function ProjectPage({
   const [taskTitle, setTaskTitle] = useState("");
   const [memberEmail, setMemberEmail] = useState("");
 
-  
-
   const [taskDescription, setTaskDescription] = useState("");
   const [taskPriority, setTaskPriority] = useState<"LOW" | "MEDIUM" | "HIGH">(
     "MEDIUM",
@@ -72,6 +75,8 @@ export default function ProjectPage({
 
   const [assignedToId, setAssignedToId] = useState("");
 
+
+  
   // ✅ Safe fetch wrapper
 
   const fetchProject = useCallback(async () => {
@@ -94,21 +99,13 @@ export default function ProjectPage({
     }
   }, [execute, projectId, showToast]);
 
-  useEffect(() => {
-    const channel = pusherClient.subscribe(`project-${projectId}`);
-
-    channel.bind("project-updated", async () => {
-      await fetchProject();
-    });
-
-    return () => {
-      channel.unbind_all();
-      pusherClient.unsubscribe(`project-${projectId}`);
-    };
-  }, [projectId, fetchProject]);
-
-
-
+   useRealtimeChannel({
+  channelName: `project-${projectId}`,
+  eventName:
+    REALTIME_EVENTS.PROJECT_UPDATED,
+  callback: fetchProject,
+});
+  
   useEffect(() => {
     const init = async () => {
       await fetchProject();
@@ -294,11 +291,9 @@ export default function ProjectPage({
             {task.title}
           </h3>
 
-          <span
-            className={`text-xs px-3 py-1 rounded-full ${statusStyles[task.status]}`}
-          >
-            {task.status.replace("_", " ")}
-          </span>
+          <StatusBadge status={task.status}>
+  {task.status.replace("_", " ")}
+</StatusBadge>
         </div>
 
         <p className="text-sm text-gray-500 mt-3">
@@ -334,25 +329,23 @@ disabled:opacity-50
 
   return (
     <div className="space-y-10">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight">{data.name}</h1>
-          <p className="mt-2 text-sm text-gray-500">
-            Manage tasks, members, and collaboration for this workspace.
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 shadow-sm">
-          {data.tasks.length} Tasks
-        </div>
-      </div>
+      <PageHeader
+        title={data.name}
+        description="Manage tasks, members, and collaboration for this workspace."
+        action={
+          <div className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 shadow-sm">
+            {data.tasks.length} Tasks
+          </div>
+        }
+      />
 
       {/* MEMBERS SECTION */}
-      <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-6">
+      <Card className="space-y-6 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">
             Team Members
           </h2>
+
           <p className="mt-1 text-sm text-gray-500">
             Manage collaboration and workspace access.
           </p>
@@ -369,25 +362,13 @@ disabled:opacity-50
             onChange={(event) => setMemberEmail(event.target.value)}
           />
 
-          <button
+          <Button
             onClick={handleAddMember}
             disabled={!memberEmail.trim()}
-            className="
-      h-12
-      rounded-2xl
-      bg-black
-      px-6
-      text-sm
-      font-semibold
-      text-white
-      transition-all
-      hover:opacity-90
-      disabled:cursor-not-allowed
-      disabled:opacity-50
-    "
+            className="h-12 rounded-2xl px-6"
           >
             Add Member
-          </button>
+          </Button>
         </FormSection>
 
         <div className="flex flex-wrap gap-2">
@@ -399,14 +380,14 @@ disabled:opacity-50
             data.members.map((m) => (
               <div
                 key={m.user.id}
-                className="px-4 py-1.5 bg-gray-100 rounded-full text-sm font-medium"
+                className="rounded-full bg-gray-100 px-4 py-1.5 text-sm font-medium"
               >
                 {m.user.name}
               </div>
             ))
           )}
         </div>
-      </div>
+      </Card>
 
       {/* CREATE TASK SECTION */}
       <FormSection
@@ -436,16 +417,16 @@ disabled:opacity-50
               setTaskPriority(event.target.value as "LOW" | "MEDIUM" | "HIGH")
             }
             className="
-        h-12
-        w-full
-        rounded-2xl
-        border
-        border-gray-200
-        bg-white
-        px-4
-        text-sm
-        shadow-sm
-      "
+            h-12
+            w-full
+            rounded-2xl
+            border
+            border-gray-200
+            bg-white
+            px-4
+            text-sm
+            shadow-sm
+          "
           >
             <option value="LOW">Low</option>
             <option value="MEDIUM">Medium</option>
@@ -460,16 +441,16 @@ disabled:opacity-50
             value={assignedToId}
             onChange={(event) => setAssignedToId(event.target.value)}
             className="
-        h-12
-        w-full
-        rounded-2xl
-        border
-        border-gray-200
-        bg-white
-        px-4
-        text-sm
-        shadow-sm
-      "
+            h-12
+            w-full
+            rounded-2xl
+            border
+            border-gray-200
+            bg-white
+            px-4
+            text-sm
+            shadow-sm
+          "
           >
             <option value="">Select member</option>
 
@@ -481,34 +462,23 @@ disabled:opacity-50
           </select>
         </div>
 
-        <button
+        <Button
           onClick={handleCreateTask}
           disabled={!taskTitle.trim()}
-          className="
-      h-12
-      rounded-2xl
-      bg-black
-      px-6
-      text-sm
-      font-semibold
-      text-white
-      transition-all
-      hover:opacity-90
-      disabled:cursor-not-allowed
-      disabled:opacity-50
-    "
+          className="h-12 rounded-2xl px-6"
         >
           Create Task
-        </button>
+        </Button>
       </FormSection>
 
       {/* ACTIVE TASKS */}
       <div>
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight">
               Active Tasks
             </h2>
+
             <p className="text-sm text-gray-500">
               Tasks currently being worked on.
             </p>
@@ -516,15 +486,10 @@ disabled:opacity-50
         </div>
 
         {activeTasks.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-gray-200 py-12 text-center">
-            <h3 className="text-lg font-semibold text-gray-900">
-              No tasks yet
-            </h3>
-
-            <p className="mt-2 text-sm text-gray-500">
-              Create and assign tasks to start tracking team progress.
-            </p>
-          </div>
+          <EmptyState
+            title="No tasks yet"
+            description="Create and assign tasks to start tracking team progress."
+          />
         ) : (
           <div className="grid gap-4">
             {activeTasks.map((t) => renderTask(t))}
@@ -534,11 +499,12 @@ disabled:opacity-50
 
       {/* COMPLETED TASKS */}
       <div>
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight">
               Completed Tasks
             </h2>
+
             <p className="text-sm text-gray-500">
               Finished work delivered by team members.
             </p>
@@ -546,11 +512,12 @@ disabled:opacity-50
         </div>
 
         {completedTasks.length === 0 ? (
-          <div className="text-gray-400 py-8 text-center border border-dashed border-gray-200 rounded-3xl">
-            No completed tasks yet.
-          </div>
+          <EmptyState
+            title="No completed tasks yet"
+            description="Completed work delivered by team members will appear here."
+          />
         ) : (
-          <div className="grid gap-4 ">
+          <div className="grid gap-4">
             {completedTasks.map((t) => renderTask(t, true))}
           </div>
         )}
@@ -558,20 +525,22 @@ disabled:opacity-50
 
       {/* DANGER ZONE */}
       <div className="border-t pt-8">
-        <div className="rounded-3xl border border-red-100 bg-red-50 p-6">
+        <Card className="rounded-3xl border border-red-100 bg-red-50 p-6">
           <h3 className="font-semibold text-red-700">Danger Zone</h3>
-          <p className="text-sm text-red-600 mt-1">
+
+          <p className="mt-1 text-sm text-red-600">
             This action cannot be undone. All tasks and data will be permanently
             deleted.
           </p>
-          <button
+
+          <Button
             disabled={actionLoading}
             onClick={handleDeleteProject}
-            className="mt-4 h-11 rounded-2xl bg-red-600 px-6 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-4 h-11 rounded-2xl px-6 bg-red-600 text-white hover:bg-red-700"
           >
             Delete Project
-          </button>
-        </div>
+          </Button>
+        </Card>
       </div>
 
       {/* Global Toast Container */}

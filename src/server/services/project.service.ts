@@ -1,6 +1,7 @@
 import { prisma } from "@/server/lib/prisma";
 import { ValidationError } from "../lib/errors";
 import { AppError } from "@/server/lib/app-errors";
+import { emitProjectUpdated } from "../lib/event-bus";
 /**
  * Create a new project and assign creator as ADMIN
  */
@@ -8,10 +9,7 @@ export async function createProject(userId: string, name: string) {
   const trimmedName = name.trim();
 
   if (!trimmedName) {
-    throw new AppError(
-  "Project name required",
-  400,
-);
+    throw new AppError("Project name required", 400);
   }
 
   return prisma.$transaction(async (tx) => {
@@ -96,10 +94,7 @@ export async function addMember(
     });
 
     if (!user) {
-      throw new AppError(
-  "User not found",
-  404,
-);
+      throw new AppError("User not found", 404);
     }
 
     const existing = await tx.projectMember.findUnique({
@@ -112,19 +107,21 @@ export async function addMember(
     });
 
     if (existing) {
-      throw new AppError(
-  "User already a member",
-  409,
-);
+      throw new AppError("User already a member", 409);
     }
 
-    return tx.projectMember.create({
-      data: {
-        userId: user.id,
-        projectId,
-        role: "MEMBER",
-      },
-    });
+  const member =
+  await tx.projectMember.create({
+    data: {
+      userId: user.id,
+      projectId,
+      role: "MEMBER",
+    },
+  });
+
+await emitProjectUpdated(projectId);
+
+return member;
   });
 }
 
@@ -164,10 +161,7 @@ export async function requireProjectMember(userId: string, projectId: string) {
   });
 
   if (!member) {
-    throw new AppError(
-  "Not a project member",
-  403,
-);
+    throw new AppError("Not a project member", 403);
   }
 
   return member;
@@ -176,24 +170,28 @@ export async function requireProjectMember(userId: string, projectId: string) {
 /**
  * Ensure user is admin of project
  */
-export async function requireProjectAdmin(userId: string, projectId: string) {
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    select: { createdById: true },
+export async function requireProjectAdmin(
+  userId: string,
+  projectId: string,
+) {
+  const member = await prisma.projectMember.findUnique({
+    where: {
+      userId_projectId: {
+        userId,
+        projectId,
+      },
+    },
+    select: {
+      role: true,
+    },
   });
 
-  if (!project) {
-    throw new AppError(
-  "Not a project member",
-  403,
-);
+  if (!member) {
+    throw new AppError("Project not found or access denied", 404);
   }
 
-  if (project.createdById !== userId) {
-    throw new AppError(
-  "Admin access required",
-  403,
-);
+  if (member.role !== "ADMIN") {
+    throw new AppError("Admin access required", 403);
   }
 
   return true;

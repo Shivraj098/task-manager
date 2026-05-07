@@ -1,11 +1,13 @@
 "use client";
+import { useRealtimeChannel } from "@/hooks/realtime/use-realtime-channel";
+import { REALTIME_EVENTS } from "@/lib/realtime-events";
 import { apiClient } from "@/lib/api-client";
 import { useApi } from "@/hooks/api/use-api";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { pusherClient } from "@/server/lib/pusher-client";
 import FormInput from "@/components/shared/forms/FormInput";
+
 import FormSection from "@/components/shared/forms/FormSection";
 type DashboardData = {
   totalTasks: number;
@@ -34,9 +36,12 @@ export default function DashboardPage() {
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectName, setProjectName] = useState("");
-
+const [userId, setUserId] = useState<string | null>(null);
   const [isloading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+
+
+  
 
   // =========================
   // AUTH CHECK
@@ -69,6 +74,23 @@ export default function DashboardPage() {
     checkAuth();
   }, [router]);
 
+  useEffect(() => {
+  const getSession = async () => {
+    const response = await fetch(
+      "/api/auth/session",
+    );
+
+    const session =
+      await response.json();
+
+    if (session?.user?.id) {
+      setUserId(session.user.id);
+    }
+  };
+
+  getSession();
+}, []);
+
   // =========================
   // SAFE FETCH
   // =========================
@@ -90,6 +112,8 @@ export default function DashboardPage() {
     setDashboard(data);
   }, [execute, showToast]);
 
+
+
   // =========================
   // FETCH PROJECTS
   // =========================
@@ -104,19 +128,22 @@ export default function DashboardPage() {
 
     setProjects(data);
   }, [execute, showToast]);
-  useEffect(() => {
-    const channel = pusherClient.subscribe("dashboard-global");
 
-    channel.bind("dashboard-updated", async () => {
-      await fetchDashboard();
-      await fetchProjects();
-    });
+  useRealtimeChannel({
+  channelName: `dashboard-${userId}`,
+  eventName:
+    REALTIME_EVENTS.DASHBOARD_UPDATED,
+  callback: fetchDashboard,
+});
 
-    return () => {
-      channel.unbind_all();
-      pusherClient.unsubscribe("dashboard-global");
-    };
-  }, [fetchDashboard, fetchProjects]);
+useRealtimeChannel({
+  channelName: `dashboard-${userId}`,
+  eventName:
+    REALTIME_EVENTS.DASHBOARD_UPDATED,
+  callback: fetchProjects,
+});
+
+
 
   // =========================
   // LOAD DATA

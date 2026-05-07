@@ -7,7 +7,11 @@ import {
   UnauthorizedError,
   ValidationError,
 } from "../lib/errors";
-
+import {
+  emitDashboardUpdated,
+  emitProjectUpdated,
+  emitTaskUpdated,
+} from "@/server/lib/event-bus";
 type CreateTaskInput = {
   title: string;
   description?: string;
@@ -34,11 +38,14 @@ export async function createTask(
     });
 
     if (!member) {
-      throw new AppError("Task not found", 404);
+      throw new AppError(
+  "Assigned user is not part of this project",
+  400,
+);
     }
   }
 
-  return prisma.task.create({
+  const task = await prisma.task.create({
     data: {
       title: data.title,
       description: data.description,
@@ -48,6 +55,15 @@ export async function createTask(
       assignedToId: data.assignedToId,
     },
   });
+
+  await emitProjectUpdated(projectId);
+
+  if (data.assignedToId) {
+    await emitTaskUpdated(data.assignedToId);
+    await emitDashboardUpdated(data.assignedToId);
+  }
+
+  return task;
 }
 
 // ✅ GET PROJECT TASKS
@@ -118,7 +134,7 @@ export async function updateTaskStatus(
 }
 
 export async function startTask(userId: string, taskId: string) {
-  return prisma.$transaction(async (tx) => {
+  const data = await prisma.$transaction(async (tx) => {
     const task = await tx.task.findUnique({
       where: { id: taskId },
     });
@@ -135,18 +151,29 @@ export async function startTask(userId: string, taskId: string) {
       throw new AppError("Task must be in PENDING state", 400);
     }
 
-    return tx.task.update({
+    const result = await tx.task.update({
       where: { id: taskId },
       data: {
         status: "IN_PROGRESS",
         startedAt: new Date(),
       },
     });
+
+    return {
+      task: result,
+      projectId: task.projectId,
+    };
   });
+
+  await emitProjectUpdated(data.projectId);
+  await emitTaskUpdated(userId);
+  await emitDashboardUpdated(userId);
+
+  return data.task;
 }
 
 export async function completeTask(userId: string, taskId: string) {
-  return prisma.$transaction(async (tx) => {
+  const data = await prisma.$transaction(async (tx) => {
     const task = await tx.task.findUnique({
       where: { id: taskId },
     });
@@ -163,12 +190,23 @@ export async function completeTask(userId: string, taskId: string) {
       throw new AppError("Task must be in IN_PROGRESS to complete", 400);
     }
 
-    return tx.task.update({
+    const result = await tx.task.update({
       where: { id: taskId },
       data: {
         status: "DONE",
         completedAt: new Date(),
       },
     });
+
+    return {
+      task: result,
+      projectId: task.projectId,
+    };
   });
+
+  await emitProjectUpdated(data.projectId);
+  await emitTaskUpdated(userId);
+  await emitDashboardUpdated(userId);
+
+  return data.task;
 }

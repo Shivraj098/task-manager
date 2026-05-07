@@ -25,6 +25,7 @@ model Project {
   id        String   @id @default(cuid())
   name      String
   createdAt DateTime @default(now())
+  @@index([createdById])
 
   createdById String
   createdBy   User @relation("CreatedProjects", fields: [createdById], references: [id])
@@ -51,6 +52,9 @@ model Task {
   dueDate     DateTime?
   priority    Priority
   status      Status
+  @@index([projectId])
+@@index([assignedToId])
+@@index([status])
 
   projectId String
   project   Project @relation(fields: [projectId], references: [id])
