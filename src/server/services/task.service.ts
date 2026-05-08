@@ -1,17 +1,17 @@
 import { prisma } from "@/server/lib/prisma";
 import { requireProjectMember } from "./project.service";
 import type { TaskStatusType } from "@/server/validators/task.validator";
-import { AppError } from "../lib/app-errors";
+import { AppError } from "../errors/app-errors";
 import {
   NotFoundError,
   UnauthorizedError,
   ValidationError,
-} from "../lib/errors";
+} from "../errors/errors";
 import {
   emitDashboardUpdated,
   emitProjectUpdated,
   emitTaskUpdated,
-} from "@/server/lib/event-bus";
+} from "@/server/realtime/event-bus";
 type CreateTaskInput = {
   title: string;
   description?: string;

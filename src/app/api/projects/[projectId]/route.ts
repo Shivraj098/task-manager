@@ -1,5 +1,5 @@
-import { getAuthSession } from "@/server/lib/auth";
-import { withErrorHandling } from "@/server/lib/with-errors";
+import { getAuthSession } from "@/server/auth/auth";
+import { withErrorHandling } from "@/server/errors/with-errors";
 import { errorResponse, successResponse } from "@/server/lib/api-response";
 import {
   requireProjectAdmin,

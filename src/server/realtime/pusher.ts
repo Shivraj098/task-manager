@@ -1,5 +1,5 @@
 import Pusher from "pusher";
-import { env } from "./env";
+import { env } from "@/server/lib/env";
 
 export const pusherServer = new Pusher({
   appId: env.PUSHER_APP_ID!,

@@ -3,7 +3,7 @@ import {
   getProjectTasks,
   updateTaskStatus,
 } from "../services/task.service";
-import { ValidationError } from "../lib/errors";
+import { ValidationError } from "../errors/errors";
 import type {
   CreateTaskInput,
   UpdateTaskStatusInput,
@@ -15,7 +15,7 @@ import type {
 export async function handleCreateTask(
   userId: string,
   projectId: string,
-  body: CreateTaskInput
+  body: CreateTaskInput,
 ) {
   if (!body.title) {
     throw new ValidationError("Title required");
@@ -31,10 +31,7 @@ export async function handleCreateTask(
 /**
  * Get Project Tasks
  */
-export async function handleGetTasks(
-  userId: string,
-  projectId: string
-) {
+export async function handleGetTasks(userId: string, projectId: string) {
   return getProjectTasks(userId, projectId);
 }
 
@@ -44,7 +41,7 @@ export async function handleGetTasks(
 export async function handleUpdateTaskStatus(
   userId: string,
   taskId: string,
-  body: UpdateTaskStatusInput
+  body: UpdateTaskStatusInput,
 ) {
   return updateTaskStatus(userId, taskId, body.status);
 }

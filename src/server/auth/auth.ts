@@ -1,5 +1,5 @@
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/server/lib/authOptions";
+import { authOptions } from "@/server/auth/authOptions";
 
 /**
  * Safe session getter

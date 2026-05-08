@@ -1,4 +1,4 @@
-import { pusherServer } from "./pusher";
+import { pusherServer } from "@/server/realtime/pusher";
 import { REALTIME_EVENTS } from "@/lib/realtime-events";
 
 export async function emitProjectUpdated(

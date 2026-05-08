@@ -2,36 +2,25 @@ import { ZodError } from "zod";
 import { AppError } from "./app-errors";
 
 export function withErrorHandling<T>(
-  handler: (
-    req: Request,
-    context?: T,
-  ) => Promise<Response>,
+  handler: (req: Request, context?: T) => Promise<Response>,
 ) {
-  return async (
-    req: Request,
-    context?: T,
-  ): Promise<Response> => {
+  return async (req: Request, context?: T): Promise<Response> => {
     try {
       return await handler(req, context);
     } catch (error: unknown) {
-      console.error(
-        "[API_ERROR]",
-        error,
-      );
+      console.error("[API_ERROR]", error);
 
       if (error instanceof ZodError) {
         return new Response(
           JSON.stringify({
             success: false,
-            error:
-              "Validation failed",
+            error: "Validation failed",
             issues: error.issues,
           }),
           {
             status: 422,
             headers: {
-              "Content-Type":
-                "application/json",
+              "Content-Type": "application/json",
             },
           },
         );
@@ -46,8 +35,7 @@ export function withErrorHandling<T>(
           {
             status: error.statusCode,
             headers: {
-              "Content-Type":
-                "application/json",
+              "Content-Type": "application/json",
             },
           },
         );
@@ -56,14 +44,12 @@ export function withErrorHandling<T>(
       return new Response(
         JSON.stringify({
           success: false,
-          error:
-            "Internal server error",
+          error: "Internal server error",
         }),
         {
           status: 500,
           headers: {
-            "Content-Type":
-              "application/json",
+            "Content-Type": "application/json",
           },
         },
       );

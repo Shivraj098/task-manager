@@ -1,7 +1,7 @@
 import { prisma } from "@/server/lib/prisma";
-import { withErrorHandling } from "@/server/lib/with-errors";
+import { withErrorHandling } from "@/server/errors/with-errors";
 import { successResponse } from "@/server/lib/api-response";
-import { getAuthSession } from "@/server/lib/auth";
+import { getAuthSession } from "@/server/auth/auth";
 
 export const GET = withErrorHandling(async () => {
   const session = await getAuthSession();
@@ -9,7 +9,7 @@ export const GET = withErrorHandling(async () => {
   if (!session) {
     return new Response(
       JSON.stringify({ success: false, error: "Unauthorized" }),
-      { status: 401 }
+      { status: 401 },
     );
   }
 

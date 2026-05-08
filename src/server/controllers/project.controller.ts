@@ -2,20 +2,16 @@ import {
   createProject,
   getAdminProjects,
   addMember,
-  
 } from "../services/project.service";
-import { ValidationError } from "../lib/errors";
-import {
-  CreateProjectInput,
-  AddMemberInput,
-} from "../../types/project.types";
+import { ValidationError } from "../errors/errors";
+import { CreateProjectInput, AddMemberInput } from "../../types/project.types";
 
 /**
  * Create project
  */
 export async function handleCreateProject(
   userId: string,
-  body: CreateProjectInput
+  body: CreateProjectInput,
 ) {
   const name = body.name?.trim();
 
@@ -39,7 +35,7 @@ export async function handleGetProjects(userId: string) {
 export async function handleAddMember(
   userId: string,
   projectId: string,
-  body: AddMemberInput
+  body: AddMemberInput,
 ) {
   const email = body.email?.trim().toLowerCase();
 

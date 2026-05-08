@@ -1,7 +1,6 @@
 import { prisma } from "@/server/lib/prisma";
-import { ValidationError } from "../lib/errors";
-import { AppError } from "@/server/lib/app-errors";
-import { emitProjectUpdated } from "../lib/event-bus";
+import { AppError } from "@/server/errors/app-errors";
+import { emitProjectUpdated } from "@/server/realtime/event-bus";
 /**
  * Create a new project and assign creator as ADMIN
  */
@@ -110,18 +109,17 @@ export async function addMember(
       throw new AppError("User already a member", 409);
     }
 
-  const member =
-  await tx.projectMember.create({
-    data: {
-      userId: user.id,
-      projectId,
-      role: "MEMBER",
-    },
-  });
+    const member = await tx.projectMember.create({
+      data: {
+        userId: user.id,
+        projectId,
+        role: "MEMBER",
+      },
+    });
 
-await emitProjectUpdated(projectId);
+    await emitProjectUpdated(projectId);
 
-return member;
+    return member;
   });
 }
 
@@ -170,10 +168,7 @@ export async function requireProjectMember(userId: string, projectId: string) {
 /**
  * Ensure user is admin of project
  */
-export async function requireProjectAdmin(
-  userId: string,
-  projectId: string,
-) {
+export async function requireProjectAdmin(userId: string, projectId: string) {
   const member = await prisma.projectMember.findUnique({
     where: {
       userId_projectId: {

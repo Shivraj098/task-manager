@@ -1,8 +1,8 @@
-import { getAuthSession } from "@/server/lib/auth";
-import { withErrorHandling } from "@/server/lib/with-errors";
+import { getAuthSession } from "@/server/auth/auth";
+import { withErrorHandling } from "@/server/errors/with-errors";
 import { successResponse } from "@/server/lib/api-response";
 import { handleAddMember } from "@/server/controllers/project.controller";
-import { NotFoundError, UnauthorizedError } from "@/server/lib/errors";
+import { NotFoundError, UnauthorizedError } from "@/server/errors/errors";
 
 type ParamsContext = {
   params: Promise<{ projectId: string }>;
@@ -15,7 +15,7 @@ export const POST = withErrorHandling<ParamsContext>(
     if (!session) {
       throw new UnauthorizedError("Unauthorized");
     }
-if (!context || !context.params) {
+    if (!context || !context.params) {
       throw new NotFoundError("Missing parameters");
     }
     const params = await context.params;
@@ -26,9 +26,9 @@ if (!context || !context.params) {
     const result = await handleAddMember(
       session.user.id, // 🔥 REQUIRED
       projectId,
-      body
+      body,
     );
 
     return successResponse(result);
-  }
+  },
 );

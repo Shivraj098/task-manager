@@ -5,10 +5,18 @@ import { useToast } from "@/hooks/use-toast";
 import { useCallback, useEffect, useState } from "react";
 import { useRealtimeChannel } from "@/hooks/realtime/use-realtime-channel";
 import { REALTIME_EVENTS } from "@/lib/realtime-events";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
 type Task = {
   id: string;
   title: string;
+  description?: string | null;
+
+  priority: "LOW" | "MEDIUM" | "HIGH";
+
+  dueDate?: string | null;
+
   status: "PENDING" | "IN_PROGRESS" | "DONE";
+
   project: {
     id: string;
     name: string;
@@ -18,14 +26,17 @@ type Task = {
 export default function MyTasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [taskToComplete, setTaskToComplete] = useState<string | null>(null);
+
+  const [completing, setCompleting] = useState(false);
   const { execute } = useApi();
   const { showToast } = useToast();
-  
+
   // 🔹 Segmentation
   const pending = tasks.filter((t) => t.status === "PENDING");
   const inProgress = tasks.filter((t) => t.status === "IN_PROGRESS");
   const completed = tasks.filter((t) => t.status === "DONE");
-const [userId, setUserId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const fetchTasks = useCallback(async () => {
     try {
       const data = await execute(() => apiClient<Task[]>("/api/tasks/me"));
@@ -45,8 +56,6 @@ const [userId, setUserId] = useState<string | null>(null);
       setLoading(false);
     }
   }, [execute, showToast]);
-
-
 
   useEffect(() => {
     const init = async () => {
@@ -74,47 +83,55 @@ const [userId, setUserId] = useState<string | null>(null);
   };
 
   useEffect(() => {
-  const getSession = async () => {
-    const response = await fetch(
-      "/api/auth/session",
-    );
+    const getSession = async () => {
+      const response = await fetch("/api/auth/session");
 
-    const session =
-      await response.json();
+      const session = await response.json();
 
-    if (session?.user?.id) {
-      setUserId(session.user.id);
+      if (session?.user?.id) {
+        setUserId(session.user.id);
+      }
+    };
+
+    getSession();
+  }, []);
+
+  useRealtimeChannel({
+    channelName: `tasks-${userId}`,
+    eventName: REALTIME_EVENTS.TASK_UPDATED,
+    callback: fetchTasks,
+  });
+
+  const completeTask = async () => {
+    if (!taskToComplete) return;
+
+    try {
+      setCompleting(true);
+
+      const result = await execute(() =>
+        apiClient(`/api/tasks/${taskToComplete}/complete`, {
+          method: "PATCH",
+        }),
+      );
+
+      if (!result) {
+        showToast("Failed to complete task", "error");
+
+        return;
+      }
+
+      showToast("Task completed");
+
+      setTaskToComplete(null);
+
+      await fetchTasks();
+    } catch (error) {
+      console.error(error);
+
+      showToast("Something went wrong", "error");
+    } finally {
+      setCompleting(false);
     }
-  };
-
-  getSession();
-}, []);
-
-useRealtimeChannel({
-  channelName: `tasks-${userId}`,
-  eventName:
-    REALTIME_EVENTS.TASK_UPDATED,
-  callback: fetchTasks,
-});
-
-  const completeTask = async (taskId: string) => {
-    const confirmed = confirm("Are you sure you want to complete this task?");
-    if (!confirmed) return;
-
-    const result = await execute(() =>
-      apiClient(`/api/tasks/${taskId}/complete`, {
-        method: "PATCH",
-        credentials: "include",
-      }),
-    );
-
-    if (!result) {
-      showToast("Failed to complete task", "error");
-      return;
-    }
-
-    showToast("Task completed");
-    await fetchTasks();
   };
 
   if (loading) {
@@ -167,6 +184,18 @@ space-y-4
           <p className="mt-1 text-sm font-medium text-gray-500">
             {task.project.name}
           </p>
+
+          {task.description && (
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600">
+              {task.description}
+            </p>
+          )}
+
+          {task.dueDate && (
+            <p className="mt-3 text-xs font-medium text-gray-500">
+              Due: {new Date(task.dueDate).toLocaleDateString()}
+            </p>
+          )}
         </div>
 
         <span
@@ -179,6 +208,18 @@ space-y-4
           }`}
         >
           {task.status.replace("_", " ")}
+        </span>
+
+        <span
+          className={`rounded-full border px-3 py-1 text-xs font-medium ${
+            task.priority === "HIGH"
+              ? "border-red-200 bg-red-50 text-red-700"
+              : task.priority === "MEDIUM"
+                ? "border-blue-200 bg-blue-50 text-blue-700"
+                : "border-gray-200 bg-gray-100 text-gray-700"
+          }`}
+        >
+          {task.priority}
         </span>
       </div>
 
@@ -209,7 +250,7 @@ space-y-4
 
         {task.status === "IN_PROGRESS" && (
           <button
-            onClick={() => completeTask(task.id)}
+            onClick={() => setTaskToComplete(task.id)}
             className="
   rounded-xl
   bg-green-600
@@ -337,6 +378,15 @@ space-y-4
           <div className="grid gap-4">{completed.map(renderTaskCard)}</div>
         )}
       </section>
+
+      <ConfirmModal
+        open={!!taskToComplete}
+        title="Complete Task"
+        description="Are you sure you want to mark this task as completed?"
+        loading={completing}
+        onCancel={() => setTaskToComplete(null)}
+        onConfirm={completeTask}
+      />
     </div>
   );
 }

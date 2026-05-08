@@ -1,4 +1,4 @@
-import { getAuthSession } from "@/server/lib/auth";
+import { getAuthSession } from "@/server/auth/auth";
 import { errorResponse, successResponse } from "@/server/lib/api-response";
 import { prisma } from "@/server/lib/prisma";
 

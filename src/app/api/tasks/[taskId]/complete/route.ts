@@ -1,10 +1,10 @@
-import { getAuthSession } from "@/server/lib/auth";
+import { getAuthSession } from "@/server/auth/auth";
 import { errorResponse, successResponse } from "@/server/lib/api-response";
 import { prisma } from "@/server/lib/prisma";
 import {
   triggerDashboardUpdate,
   triggerProjectUpdate,
-} from "@/server/lib/realtime";
+} from "@/server/realtime/realtime";
 import { completeTask } from "@/server/services/task.service";
 
 export async function PATCH(

@@ -1,10 +1,10 @@
-import { getAuthSession } from "@/server/lib/auth";
+import { getAuthSession } from "@/server/auth/auth";
 import { prisma } from "@/server/lib/prisma";
-import { withErrorHandling } from "@/server/lib/with-errors";
+import { withErrorHandling } from "@/server/errors/with-errors";
 import { successResponse } from "@/server/lib/api-response";
 import { handleGetProjects } from "@/server/controllers/project.controller";
- 
-  import { UnauthorizedError, ValidationError } from "@/server/lib/errors";
+
+import { UnauthorizedError, ValidationError } from "@/server/errors/errors";
 export const GET = withErrorHandling(async () => {
   const session = await getAuthSession();
 

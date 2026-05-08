@@ -2,7 +2,7 @@ import { prisma } from "@/server/lib/prisma";
 import bcrypt from "bcrypt";
 import { signupSchema } from "@/server/validators/auth.validator";
 import { successResponse, errorResponse } from "@/server/lib/api-response";
-import { withErrorHandling } from "@/server/lib/with-errors";
+import { withErrorHandling } from "@/server/errors/with-errors";
 
 export const POST = withErrorHandling(async (req: Request) => {
   const body = signupSchema.parse(await req.json());

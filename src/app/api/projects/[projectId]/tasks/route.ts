@@ -1,12 +1,12 @@
-import { getAuthSession } from "@/server/lib/auth";
+import { getAuthSession } from "@/server/auth/auth";
 import { createTaskSchema } from "@/server/validators/task.validator";
 import { errorResponse, successResponse } from "@/server/lib/api-response";
-import { withErrorHandling } from "@/server/lib/with-errors";
+import { withErrorHandling } from "@/server/errors/with-errors";
 import { createTask, getProjectTasks } from "@/server/services/task.service";
 import {
   triggerDashboardUpdate,
   triggerProjectUpdate,
-} from "@/server/lib/realtime";
+} from "@/server/realtime/realtime";
 
 type ParamsContext = {
   params: Promise<{ projectId: string }>;
