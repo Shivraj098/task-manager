@@ -1,4 +1,5 @@
 "use client";
+
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -16,6 +17,7 @@ import FormSection from "@/components/shared/forms/FormSection";
 import { apiClient } from "@/lib/api-client";
 import { useApi } from "@/hooks/api/use-api";
 import { useRouter } from "next/navigation";
+
 type Member = {
   user: {
     id: string;
@@ -55,6 +57,7 @@ export default function ProjectPage({
   const router = useRouter();
   const { execute } = useApi();
   const { projectId } = use(params);
+
   const [confirm, setConfirm] = useState<{
     open: boolean;
     type: "delete-task" | "delete-project" | null;
@@ -62,22 +65,32 @@ export default function ProjectPage({
   }>({ open: false, type: null });
 
   const [data, setData] = useState<ProjectData | null>(null);
+
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
+
+  const [creatingTask, setCreatingTask] = useState(false);
+
+  const [addingMember, setAddingMember] = useState(false);
+
+  const [deletingProject, setDeletingProject] = useState(false);
+
+  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
+
+  const [confirmLoading, setConfirmLoading] = useState(false);
+
   const { toasts, showToast } = useToast();
+
   const [taskTitle, setTaskTitle] = useState("");
+
   const [memberEmail, setMemberEmail] = useState("");
 
   const [taskDescription, setTaskDescription] = useState("");
+
   const [taskPriority, setTaskPriority] = useState<"LOW" | "MEDIUM" | "HIGH">(
     "MEDIUM",
   );
 
   const [assignedToId, setAssignedToId] = useState("");
-
-
-  
-  // ✅ Safe fetch wrapper
 
   const fetchProject = useCallback(async () => {
     try {
@@ -99,17 +112,17 @@ export default function ProjectPage({
     }
   }, [execute, projectId, showToast]);
 
-   useRealtimeChannel({
-  channelName: `project-${projectId}`,
-  eventName:
-    REALTIME_EVENTS.PROJECT_UPDATED,
-  callback: fetchProject,
-});
-  
+  useRealtimeChannel({
+    channelName: `project-${projectId}`,
+    eventName: REALTIME_EVENTS.PROJECT_UPDATED,
+    callback: fetchProject,
+  });
+
   useEffect(() => {
     const init = async () => {
       await fetchProject();
     };
+
     init();
   }, [fetchProject]);
 
@@ -117,7 +130,7 @@ export default function ProjectPage({
     if (!taskTitle.trim()) return;
 
     try {
-      setActionLoading(true);
+      setCreatingTask(true);
 
       const createdTask = await execute(() =>
         apiClient(`/api/projects/${projectId}/tasks`, {
@@ -133,6 +146,7 @@ export default function ProjectPage({
 
       if (!createdTask) {
         showToast("Failed to create task", "error");
+
         return;
       }
 
@@ -145,7 +159,7 @@ export default function ProjectPage({
 
       await fetchProject();
     } finally {
-      setActionLoading(false);
+      setCreatingTask(false);
     }
   };
 
@@ -153,7 +167,7 @@ export default function ProjectPage({
     if (!memberEmail.trim()) return;
 
     try {
-      setActionLoading(true);
+      setAddingMember(true);
 
       const addedMember = await execute(() =>
         apiClient(`/api/projects/${projectId}/members`, {
@@ -166,6 +180,7 @@ export default function ProjectPage({
 
       if (!addedMember) {
         showToast("Failed to add member", "error");
+
         return;
       }
 
@@ -175,7 +190,7 @@ export default function ProjectPage({
 
       await fetchProject();
     } finally {
-      setActionLoading(false);
+      setAddingMember(false);
     }
   };
 
@@ -197,10 +212,12 @@ export default function ProjectPage({
   const executeConfirm = async () => {
     if (!confirm.type) return;
 
-    setActionLoading(true);
+    setConfirmLoading(true);
 
     try {
       if (confirm.type === "delete-task" && confirm.taskId) {
+        setDeletingTaskId(confirm.taskId);
+
         const deletedTask = await execute(() =>
           apiClient(`/api/tasks/${confirm.taskId}`, {
             method: "DELETE",
@@ -209,14 +226,18 @@ export default function ProjectPage({
 
         if (!deletedTask) {
           showToast("Failed to delete task", "error");
+
           return;
         }
 
         showToast("Task deleted", "success");
+
         await fetchProject();
       }
 
       if (confirm.type === "delete-project") {
+        setDeletingProject(true);
+
         const deletedProject = await execute(() =>
           apiClient(`/api/projects/${projectId}`, {
             method: "DELETE",
@@ -225,26 +246,25 @@ export default function ProjectPage({
 
         if (!deletedProject) {
           showToast("Failed to delete project", "error");
+
           return;
         }
 
         showToast("Project deleted", "success");
+
         router.push("/dashboard");
       }
     } catch {
       showToast("Something went wrong", "error");
     } finally {
-      setActionLoading(false);
+      setConfirmLoading(false);
+
+      setDeletingTaskId(null);
+
+      setDeletingProject(false);
+
       setConfirm({ open: false, type: null });
     }
-  };
-
-  const statusStyles: Record<TaskStatus, string> = {
-    PENDING: "bg-gray-100 text-gray-700 border border-gray-200",
-
-    IN_PROGRESS: "bg-blue-50 text-blue-700 border border-blue-200",
-
-    DONE: "bg-green-50 text-green-700 border border-green-200",
   };
 
   if (loading) {
@@ -260,10 +280,13 @@ export default function ProjectPage({
       </div>
     );
   }
-  if (!data)
+
+  if (!data) {
     return <div className="p-6 text-red-500">Failed to load project</div>;
+  }
 
   const activeTasks = data.tasks.filter((t) => t.status !== "DONE");
+
   const completedTasks = data.tasks.filter((t) => t.status === "DONE");
 
   const renderTask = (task: Task, isCompleted = false) => {
@@ -284,41 +307,65 @@ export default function ProjectPage({
           hover:shadow-lg
         "
       >
-        <div className="flex justify-between items-start">
-          <h3
-            className={`font-medium ${isCompleted ? "line-through text-gray-400" : ""}`}
-          >
-            {task.title}
-          </h3>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3
+              className={`font-medium ${
+                isCompleted ? "line-through text-gray-400" : ""
+              }`}
+            >
+              {task.title}
+            </h3>
 
-          <StatusBadge status={task.status}>
-  {task.status.replace("_", " ")}
-</StatusBadge>
+            <div className="mt-2 flex items-center gap-2">
+              <StatusBadge status={task.status} />
+
+              <span
+                className={`
+                  rounded-full
+                  px-2.5
+                  py-1
+                  text-xs
+                  font-medium
+                  ${
+                    task.priority === "HIGH"
+                      ? "bg-red-50 text-red-700"
+                      : task.priority === "MEDIUM"
+                        ? "bg-yellow-50 text-yellow-700"
+                        : "bg-gray-100 text-gray-700"
+                  }
+                `}
+              >
+                {task.priority}
+              </span>
+            </div>
+          </div>
         </div>
 
-        <p className="text-sm text-gray-500 mt-3">
+        <p className="mt-3 text-sm text-gray-500">
           Assigned: {task.assignedTo?.name || "Unassigned"}
         </p>
 
-        <div className="flex gap-2 mt-4">
+        <div className="mt-4 flex gap-2">
           <button
-            disabled={actionLoading}
+            disabled={deletingTaskId === task.id}
             onClick={() => handleDeleteTask(task.id)}
             className="
-opacity-0
-group-hover:opacity-100
-transition-opacity
-text-sm
-px-4
-py-1.5
-rounded-2xl
-bg-red-500
-hover:bg-red-600
-text-white
-active:scale-95
-disabled:cursor-not-allowed
-disabled:opacity-50
-"
+              opacity-100
+              md:opacity-0
+              md:group-hover:opacity-100
+              transition-opacity
+              text-sm
+              px-4
+              py-1.5
+              rounded-2xl
+              bg-red-500
+              hover:bg-red-600
+              text-white
+              active:scale-95
+              disabled:cursor-not-allowed
+              disabled:opacity-50
+            "
           >
             Delete
           </button>
@@ -356,6 +403,7 @@ disabled:opacity-50
           description="Add collaborators to this project."
         >
           <FormInput
+            id="member-email"
             label="Member Email"
             placeholder="john@example.com"
             value={memberEmail}
@@ -363,6 +411,7 @@ disabled:opacity-50
           />
 
           <Button
+            loading={addingMember}
             onClick={handleAddMember}
             disabled={!memberEmail.trim()}
             className="h-12 rounded-2xl px-6"
@@ -371,7 +420,7 @@ disabled:opacity-50
           </Button>
         </FormSection>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-3">
           {data.members.length === 0 ? (
             <div className="text-sm text-gray-400">
               No team members added yet.
@@ -380,9 +429,34 @@ disabled:opacity-50
             data.members.map((m) => (
               <div
                 key={m.user.id}
-                className="rounded-full bg-gray-100 px-4 py-1.5 text-sm font-medium"
+                className="
+                  flex
+                  items-center
+                  gap-3
+                  rounded-full
+                  bg-gray-100
+                  px-4
+                  py-2
+                "
               >
-                {m.user.name}
+                <div
+                  className="
+                    flex
+                    h-8
+                    w-8
+                    items-center
+                    justify-center
+                    rounded-full
+                    bg-black
+                    text-xs
+                    font-semibold
+                    text-white
+                  "
+                >
+                  {m.user.name.charAt(0).toUpperCase()}
+                </div>
+
+                <span className="text-sm font-medium">{m.user.name}</span>
               </div>
             ))
           )}
@@ -395,6 +469,7 @@ disabled:opacity-50
         description="Assign actionable work to your team."
       >
         <FormInput
+          id="task-title"
           label="Task Title"
           placeholder="Design landing page"
           value={taskTitle}
@@ -402,6 +477,7 @@ disabled:opacity-50
         />
 
         <FormTextarea
+          id="task-description"
           label="Task Description"
           placeholder="Add detailed task instructions..."
           value={taskDescription}
@@ -417,19 +493,21 @@ disabled:opacity-50
               setTaskPriority(event.target.value as "LOW" | "MEDIUM" | "HIGH")
             }
             className="
-            h-12
-            w-full
-            rounded-2xl
-            border
-            border-gray-200
-            bg-white
-            px-4
-            text-sm
-            shadow-sm
-          "
+              h-12
+              w-full
+              rounded-2xl
+              border
+              border-gray-200
+              bg-white
+              px-4
+              text-sm
+              shadow-sm
+            "
           >
             <option value="LOW">Low</option>
+
             <option value="MEDIUM">Medium</option>
+
             <option value="HIGH">High</option>
           </select>
         </div>
@@ -441,16 +519,16 @@ disabled:opacity-50
             value={assignedToId}
             onChange={(event) => setAssignedToId(event.target.value)}
             className="
-            h-12
-            w-full
-            rounded-2xl
-            border
-            border-gray-200
-            bg-white
-            px-4
-            text-sm
-            shadow-sm
-          "
+              h-12
+              w-full
+              rounded-2xl
+              border
+              border-gray-200
+              bg-white
+              px-4
+              text-sm
+              shadow-sm
+            "
           >
             <option value="">Select member</option>
 
@@ -463,6 +541,7 @@ disabled:opacity-50
         </div>
 
         <Button
+          loading={creatingTask}
           onClick={handleCreateTask}
           disabled={!taskTitle.trim()}
           className="h-12 rounded-2xl px-6"
@@ -534,9 +613,10 @@ disabled:opacity-50
           </p>
 
           <Button
-            disabled={actionLoading}
+            loading={deletingProject}
+            disabled={deletingProject}
             onClick={handleDeleteProject}
-            className="mt-4 h-11 rounded-2xl px-6 bg-red-600 text-white hover:bg-red-700"
+            className="mt-4 h-11 rounded-2xl bg-red-600 px-6 text-white hover:bg-red-700"
           >
             Delete Project
           </Button>
@@ -553,8 +633,13 @@ disabled:opacity-50
         }
         description="This action cannot be undone."
         onConfirm={executeConfirm}
-        onCancel={() => setConfirm({ open: false, type: null })}
-        loading={actionLoading}
+        onCancel={() =>
+          setConfirm({
+            open: false,
+            type: null,
+          })
+        }
+        loading={confirmLoading}
       />
     </div>
   );

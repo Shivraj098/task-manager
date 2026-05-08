@@ -1,27 +1,44 @@
 type FormInputProps = {
+  id?: string;
+
   label: string;
+
   placeholder?: string;
+
   value: string;
+
   onChange: (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => void;
+
   error?: string;
+
   disabled?: boolean;
+
   type?: string;
 };
 
 export default function FormInput({
+  id,
+
   label,
+
   placeholder,
+
   value,
+
   onChange,
+
   error,
+
   disabled,
+
   type = "text",
 }: FormInputProps) {
   return (
     <div className="space-y-2">
       <label
+        htmlFor={id}
         className="
           block
           text-sm
@@ -33,6 +50,7 @@ export default function FormInput({
       </label>
 
       <input
+        id={id}
         type={type}
         value={value}
         onChange={onChange}

@@ -2,8 +2,9 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/server/lib/prisma";
 import bcrypt from "bcrypt";
 import { NextAuthOptions } from "next-auth";
+import { env } from "./env";
 
-export const authOptions :NextAuthOptions= {
+export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" as const },
 
   providers: [
@@ -24,8 +25,9 @@ export const authOptions :NextAuthOptions= {
 
         const isValid = await bcrypt.compare(
           credentials.password,
-          user.passwordHash
+          user.passwordHash,
         );
+        
 
         if (!isValid) return null;
 
@@ -51,5 +53,5 @@ export const authOptions :NextAuthOptions= {
     },
   },
 
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: env.NEXTAUTH_SECRET,
 };

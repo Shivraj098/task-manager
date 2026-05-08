@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { pusherClient } from "@/server/lib/pusher-client";
+
+import { pusherClient } from "@/lib/pusher-client";
 
 type Props = {
   channelName: string;
@@ -9,13 +10,14 @@ type Props = {
   callback: () => void;
 };
 
-
 export function useRealtimeChannel({
   channelName,
   eventName,
   callback,
 }: Props) {
   useEffect(() => {
+    if (!pusherClient) return;
+
     const channel =
       pusherClient.subscribe(
         channelName,
@@ -32,9 +34,11 @@ export function useRealtimeChannel({
         callback,
       );
 
-      pusherClient.unsubscribe(
-        channelName,
-      );
+      if (pusherClient) {
+        pusherClient.unsubscribe(
+          channelName,
+        );
+      }
     };
   }, [
     channelName,

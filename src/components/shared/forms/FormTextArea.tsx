@@ -7,6 +7,7 @@ type FormTextareaProps = {
   ) => void;
   error?: string;
   disabled?: boolean;
+  id?: string;
 };
 
 export default function FormTextarea({

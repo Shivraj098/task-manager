@@ -8,17 +8,22 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
 
   const handleLogin = async () => {
-    await signIn("credentials", {
+    const result = await signIn("credentials", {
       email,
       password,
-      callbackUrl: "/dashboard",
+      redirect: false,
     });
+
+    if (result?.error) {
+      return;
+    }
+
+    window.location.href = "/dashboard";
   };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-md p-8 space-y-6 bg-white border border-gray-100 rounded-2xl shadow-xl">
-        
         {/* Header Section */}
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">
@@ -32,8 +37,8 @@ export default function LoginPage() {
         {/* Form Section */}
         <div className="space-y-5">
           <div className="space-y-1.5">
-            <label 
-              htmlFor="email" 
+            <label
+              htmlFor="email"
               className="block text-sm font-medium text-gray-700"
             >
               Email
@@ -48,8 +53,8 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-1.5">
-            <label 
-              htmlFor="password" 
+            <label
+              htmlFor="password"
               className="block text-sm font-medium text-gray-700"
             >
               Password
@@ -64,6 +69,7 @@ export default function LoginPage() {
           </div>
 
           <button
+            type="button"
             className="w-full py-2.5 px-4 mt-2 text-sm font-semibold text-white bg-black rounded-lg shadow-sm hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black transition-all duration-200 active:scale-[0.98]"
             onClick={handleLogin}
           >

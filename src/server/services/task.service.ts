@@ -38,10 +38,7 @@ export async function createTask(
     });
 
     if (!member) {
-      throw new AppError(
-  "Assigned user is not part of this project",
-  400,
-);
+      throw new AppError("Assigned user is not part of this project", 400);
     }
   }
 
@@ -142,6 +139,9 @@ export async function startTask(userId: string, taskId: string) {
     if (!task) {
       throw new AppError("Task not found", 404);
     }
+    if (!task.assignedToId) {
+      throw new ValidationError("Task has no assigned user");
+    }
 
     if (task.assignedToId !== userId) {
       throw new AppError("Only assigned user can start this task", 403);
@@ -180,6 +180,10 @@ export async function completeTask(userId: string, taskId: string) {
 
     if (!task) {
       throw new NotFoundError("Task not found");
+    }
+
+    if (!task.assignedToId) {
+      throw new ValidationError("Task has no assigned user");
     }
 
     if (task.assignedToId !== userId) {
