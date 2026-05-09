@@ -1,36 +1,167 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TaskFlow — Realtime Team Task Management Platform
 
-## Getting Started
+TaskFlow is a modern full-stack collaborative task management platform built with Next.js, TypeScript, Prisma, PostgreSQL, and realtime synchronization.
 
-First, run the development server:
+The application supports:
+- team collaboration
+- project management
+- task assignment
+- realtime updates
+- role-based permissions
+- task lifecycle workflows
+- protected APIs
+- production-grade architecture
+- automated testing
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Built as a production-focused SaaS-style application with scalable backend architecture, polished frontend UX, and deployment-ready infrastructure.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+# Live Demo
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Production URL
+[Add Your Deployment URL Here]
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+# Features
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Authentication & Authorization
+- Secure credential-based authentication
+- Session management with NextAuth
+- Protected routes and APIs
+- Role-based access control (RBAC)
+- Admin/member permission separation
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## Project Management
+- Create projects
+- Add team members
+- Admin-controlled project access
+- Isolated project visibility
+- Realtime project synchronization
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Task Management
+- Create tasks
+- Assign tasks to members
+- Task descriptions and priorities
+- Task lifecycle enforcement:
+  - PENDING
+  - IN_PROGRESS
+  - DONE
+- Due date support
+- Realtime task updates
+
+---
+
+## Dashboard System
+- Personalized dashboard
+- Task statistics
+- Status breakdown
+- Project ownership visibility
+- Member-specific task tracking
+
+---
+
+## Realtime Collaboration
+- Instant task updates
+- Dashboard synchronization
+- Project synchronization
+- Multi-user realtime communication using Pusher
+
+---
+
+## UI/UX Features
+- Modern SaaS-style interface
+- Responsive layouts
+- Loading skeletons
+- Toast notifications
+- Confirmation modals
+- Empty states
+- Hover interactions
+- Smooth transitions
+- Error boundaries
+- Accessible UI patterns
+
+---
+
+## Backend Architecture
+- Service layer architecture
+- Controller separation
+- Reusable validation schemas
+- Centralized error handling
+- Transaction-safe operations
+- Typed API responses
+- Environment validation
+- Scalable folder structure
+
+---
+
+## Testing
+- Service layer tests
+- API route tests
+- Component tests
+- End-to-end testing with Playwright
+- RBAC testing
+- Lifecycle validation tests
+
+---
+
+# Tech Stack
+
+## Frontend
+- Next.js App Router
+- React
+- TypeScript
+- Tailwind CSS
+
+---
+
+## Backend
+- Next.js Route Handlers
+- Prisma ORM
+- PostgreSQL
+- NextAuth
+- Zod Validation
+
+---
+
+## Realtime
+- Pusher Channels
+
+---
+
+## Testing
+- Vitest
+- Testing Library
+- Playwright
+
+---
+
+## Deployment
+- Vercel
+- Railway PostgreSQL
+
+---
+
+# Architecture Overview
+
+The application follows a layered architecture pattern:
+
+```text
+UI Layer
+↓
+Hooks & API Client
+↓
+API Routes
+↓
+Controllers
+↓
+Services
+↓
+Prisma ORM
+↓
+PostgreSQL

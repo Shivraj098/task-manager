@@ -8,9 +8,9 @@ import {
 import { prisma } from "@/server/lib/prisma";
 
 type ParamsContext = {
-  params: {
+  params: Promise<{
     projectId: string;
-  };
+  }>;
 };
 
 export const GET = withErrorHandling<ParamsContext>(
