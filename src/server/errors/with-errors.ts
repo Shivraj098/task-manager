@@ -2,9 +2,9 @@ import { ZodError } from "zod";
 import { AppError } from "./app-errors";
 
 export function withErrorHandling<T>(
-  handler: (req: Request, context?: T) => Promise<Response>,
+  handler: (req: Request, context: T) => Promise<Response>,
 ) {
-  return async (req: Request, context?: T): Promise<Response> => {
+  return async (req: Request, context: T): Promise<Response> => {
     try {
       return await handler(req, context);
     } catch (error: unknown) {
