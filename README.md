@@ -20,7 +20,7 @@ Built as a production-focused SaaS-style application with scalable backend archi
 # Live Demo
 
 ## Production URL
-[Add Your Deployment URL Here]
+[task-manager-ten-lac-95.vercel.app]
 
 ---
 
